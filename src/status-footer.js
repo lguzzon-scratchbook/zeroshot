@@ -44,6 +44,14 @@ const COLORS = {
   bgBlack: `${CSI}40m`,
 };
 
+// Agent states that indicate "active" work (from agent-lifecycle.js)
+// These should show in the footer with metrics
+const ACTIVE_STATES = new Set([
+  'executing_task',    // Actually running claude CLI
+  'evaluating_logic',  // Evaluating trigger conditions
+  'building_context',  // Building context for task
+]);
+
 /**
  * Debounce function - prevents rapid-fire calls during resize
  * @param {Function} fn - Function to debounce
@@ -482,11 +490,11 @@ class StatusFooter {
     switch (state) {
       case 'idle':
         return `${COLORS.gray}○${COLORS.reset}`; // Waiting for trigger
-      case 'evaluating':
+      case 'evaluating_logic':
         return blinkIndicator; // Evaluating triggers (blinking)
       case 'building_context':
         return blinkIndicator; // Building context (blinking)
-      case 'executing':
+      case 'executing_task':
         return blinkIndicator; // Running task (blinking)
       case 'stopped':
         return `${COLORS.gray}■${COLORS.reset}`; // Stopped
@@ -569,7 +577,7 @@ class StatusFooter {
 
       // Get executing agents for display
       const executingAgents = Array.from(this.agents.entries())
-        .filter(([, agent]) => agent.state === 'executing')
+        .filter(([, agent]) => ACTIVE_STATES.has(agent.state))
         .slice(0, this.maxAgentRows);
 
       // Calculate dynamic footer height: header + agent rows + summary
@@ -757,7 +765,7 @@ class StatusFooter {
     parts.push(` ${COLORS.gray}│${COLORS.reset} ${COLORS.dim}${duration}${COLORS.reset}`);
 
     // Agent counts
-    const executing = Array.from(this.agents.values()).filter((a) => a.state === 'executing').length;
+    const executing = Array.from(this.agents.values()).filter((a) => ACTIVE_STATES.has(a.state)).length;
     const total = this.agents.size;
     parts.push(` ${COLORS.gray}│${COLORS.reset} ${COLORS.green}${executing}/${total}${COLORS.reset} active`);
 
