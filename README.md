@@ -33,24 +33,24 @@ Point at a GitHub issue, walk away, come back to working code.
 ### Demo
 
 ```bash
-zeroshot "Add rate limiting middleware: sliding window algorithm (not fixed window),
-per-IP tracking with in-memory store and automatic TTL cleanup to prevent memory leaks,
-configurable limits per endpoint. Return 429 Too Many Requests with Retry-After header
-(seconds until reset) and X-RateLimit-Remaining header on ALL responses.
-Must handle both IPv4 and IPv6, normalizing IPv6 to consistent format."
+zeroshot "Add optimistic locking with automatic retry: when updating a user,
+detect if another request modified it first using version numbers,
+automatically retry with exponential backoff up to 3 times,
+merge non-conflicting field changes, surface true conflicts to the caller
+with details of what conflicted. Handle the ABA problem where version goes A->B->A."
 ```
 
 <p align="center">
   <img src="./docs/assets/zeroshot-demo.gif" alt="Demo" width="700">
   <br>
-  <em>Sped up 10x — 77 minutes, $22.61, 8 iterations until all validators approved</em>
+  <em>Sped up 100x — 90 minutes, $16, 5 iterations until validators approved</em>
 </p>
 
-**Why 8 iterations?** That's the validation loop working. The worker got rejected 7 times before all 6 requirements passed. A single agent would say "done!" after pass 1 with half the requirements broken.
+**The full fix cycle.** Initial implementation passed basic tests but validators caught edge cases: race conditions in concurrent updates, ABA problem not fully handled, retry backoff timing issues. Each rejection triggered fixes until all 48 tests passed with 91%+ coverage.
 
-Watch the validators catch: wrong algorithm (fixed window instead of sliding), missing Retry-After calculation, forgotten IPv6 normalization, headers only on 429 responses instead of ALL responses.
+A single agent would say "done!" after the first implementation. Here, the adversarial tester actually *runs* concurrent requests, times the retry backoff, and verifies conflict detection works under load.
 
-**This is what production-grade looks like.** Not "it compiles" — actually works, handles edge cases, meets every requirement. The adversarial tester doesn't just run tests — it uses the implementation like a real user and tries to break it.
+**This is what production-grade looks like.** Not "tests pass" — validators reject until it actually works. 5 iterations, each one fixing real bugs the previous attempt missed.
 
 ---
 
