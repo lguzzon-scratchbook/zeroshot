@@ -648,7 +648,7 @@ class Orchestrator {
     this.clusters.set(clusterId, cluster);
 
     try {
-      // Fetch input (GitHub issue or text)
+      // Fetch input (GitHub issue, file, or text)
       let inputData;
       if (input.issue) {
         inputData = await GitHub.fetchIssue(input.issue);
@@ -656,10 +656,13 @@ class Orchestrator {
         if (inputData.url) {
           this._log(`[Orchestrator] Issue: ${inputData.url}`);
         }
+      } else if (input.file) {
+        inputData = GitHub.createFileInput(input.file);
+        this._log(`[Orchestrator] File: ${input.file}`);
       } else if (input.text) {
         inputData = GitHub.createTextInput(input.text);
       } else {
-        throw new Error('Either issue or text input is required');
+        throw new Error('Either issue, file, or text input is required');
       }
 
       // Inject git-pusher agent if --pr is set (replaces completion-detector)
@@ -961,7 +964,7 @@ class Orchestrator {
           },
         },
         metadata: {
-          source: input.issue ? 'github' : 'text',
+          source: input.issue ? 'github' : input.file ? 'file' : 'text',
         },
       });
 

@@ -402,9 +402,10 @@ program
     `
 Examples:
   ${chalk.cyan('zeroshot run 123 --ship')}             Full automation: isolated + auto-merge PR
-  ${chalk.cyan('zeroshot run 123')}                    Run cluster and attach to first agent
-  ${chalk.cyan('zeroshot run 123 -d')}                 Run cluster in background (detached)
-  ${chalk.cyan('zeroshot run "Implement feature X"')}  Run cluster on plain text task
+  ${chalk.cyan('zeroshot run 123')}                    Run cluster from GitHub issue
+  ${chalk.cyan('zeroshot run feature.md')}             Run cluster from markdown file
+  ${chalk.cyan('zeroshot run "Implement feature X"')}  Run cluster from plain text
+  ${chalk.cyan('zeroshot run 123 -d')}                 Run in background (detached)
   ${chalk.cyan('zeroshot run 123 --docker')}           Run in Docker container (safe for e2e tests)
   ${chalk.cyan('zeroshot task run "Fix the bug"')}     Run single-agent background task
   ${chalk.cyan('zeroshot list')}                       List all tasks and clusters
@@ -441,7 +442,7 @@ Shell completion:
 // Run command - CLUSTER with auto-detection
 program
   .command('run <input>')
-  .description('Start a multi-agent cluster (auto-detects GitHub issue or plain text)')
+  .description('Start a multi-agent cluster (GitHub issue, markdown file, or plain text)')
   .option('--config <file>', 'Path to cluster config JSON (default: conductor-bootstrap)')
   .option('--docker', 'Run cluster inside Docker container (full isolation)')
   .option('--worktree', 'Use git worktree for isolation (lightweight, no Docker required)')
@@ -505,6 +506,10 @@ Input formats:
       // Check if it's org/repo#123 format
       else if (inputArg.match(/^[\w-]+\/[\w-]+#\d+$/)) {
         input.issue = inputArg;
+      }
+      // Check if it's a markdown file (.md or .markdown)
+      else if (/\.(md|markdown)$/i.test(inputArg)) {
+        input.file = inputArg;
       }
       // Otherwise, treat as plain text
       else {

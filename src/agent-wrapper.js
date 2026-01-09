@@ -160,6 +160,7 @@ class AgentWrapper {
   _selectModel() {
     const settings = loadSettings();
     const maxModel = settings.maxModel || 'sonnet';
+    const minModel = settings.minModel || null;
 
     let requestedModel = null;
 
@@ -189,8 +190,8 @@ class AgentWrapper {
       return maxModel;
     }
 
-    // Enforce ceiling - will throw if requestedModel > maxModel
-    return validateModelAgainstMax(requestedModel, maxModel);
+    // Enforce ceiling and floor - will throw if requestedModel > maxModel or < minModel
+    return validateModelAgainstMax(requestedModel, maxModel, minModel);
   }
 
   /**

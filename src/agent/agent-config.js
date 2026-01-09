@@ -66,15 +66,16 @@ function validateAgentConfig(config, options = {}) {
     modelConfig = { type: 'static', model: config.model || null };
   }
 
-  // COST CEILING ENFORCEMENT: Validate model(s) against maxModel at config time
+  // COST CEILING/FLOOR ENFORCEMENT: Validate model(s) against maxModel and minModel at config time
   // Catches violations EARLY (config load) instead of at runtime (iteration N)
   const settings = loadSettings();
   const maxModel = settings.maxModel || 'sonnet';
+  const minModel = settings.minModel || null;
 
   if (modelConfig.type === 'static' && modelConfig.model) {
     // Static model: validate once
     try {
-      validateModelAgainstMax(modelConfig.model, maxModel);
+      validateModelAgainstMax(modelConfig.model, maxModel, minModel);
     } catch (error) {
       throw new Error(`Agent "${config.id}": ${error.message}`);
     }
@@ -83,11 +84,12 @@ function validateAgentConfig(config, options = {}) {
     for (const rule of modelConfig.rules) {
       if (rule.model) {
         try {
-          validateModelAgainstMax(rule.model, maxModel);
+          validateModelAgainstMax(rule.model, maxModel, minModel);
         } catch {
           throw new Error(
             `Agent "${config.id}": modelRule "${rule.iterations}" requests "${rule.model}" ` +
-              `but maxModel is "${maxModel}". Either lower the rule's model or raise maxModel.`
+              `but maxModel is "${maxModel}"${minModel ? ` and minModel is "${minModel}"` : ''}. ` +
+              `Either adjust the rule's model or change maxModel/minModel settings.`
           );
         }
       }

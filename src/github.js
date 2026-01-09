@@ -8,6 +8,8 @@
  */
 
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 class GitHub {
   /**
@@ -96,6 +98,40 @@ class GitHub {
       labels: [],
       comments: [],
       context: `# Manual Input\n\n${text}\n`,
+    };
+  }
+
+  /**
+   * Create input from markdown file
+   * @param {String} filePath - Path to markdown file (.md or .markdown)
+   * @returns {Object} Structured context matching _parseIssue format
+   */
+  static createFileInput(filePath) {
+    // Resolve relative paths
+    const resolvedPath = path.resolve(filePath);
+
+    // Validate file exists
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Read file content
+    const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+
+    // Extract title from first header or use filename
+    const headerMatch = fileContent.match(/^#\s+(.+)$/m);
+    const extractedTitle = headerMatch ? headerMatch[1].trim() : null;
+    const fallbackTitle = path.basename(filePath, path.extname(filePath));
+    const title = extractedTitle || fallbackTitle;
+
+    return {
+      number: null,
+      title,
+      body: fileContent,
+      labels: [],
+      comments: [],
+      url: null,
+      context: `# ${title}\n\n${fileContent}\n`,
     };
   }
 }
