@@ -209,14 +209,14 @@ describe('Orchestrator - Cluster Lifecycle (CRITICAL)', function () {
       );
     });
 
-    it('should handle missing input (requires issue or text)', async function () {
+    it('should handle missing input (requires issue, file, or text)', async function () {
       const config = createSimpleConfig();
 
       await assert.rejects(
         async () => {
           await orchestrator.start(config, {});
         },
-        /issue or text/i,
+        /issue.*or text/i,
         'Should reject missing input'
       );
     });
