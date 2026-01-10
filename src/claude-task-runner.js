@@ -391,6 +391,8 @@ class ClaudeTaskRunner extends TaskRunner {
       claudeCmd,
       ...claudeExtraArgs,
       '--print',
+      '--input-format',
+      'text',
       '--dangerously-skip-permissions',
       '--output-format',
       runOutputFormat,

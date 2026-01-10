@@ -19,6 +19,7 @@ import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { updateTask } from './store.js';
+import { detectStreamingModeError, recoverStructuredOutput } from './claude-recovery.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔴 CRITICAL: Global error handlers - MUST be installed BEFORE any async ops
@@ -127,6 +128,7 @@ let finalResultJson = null;
 
 // Buffer for incomplete lines
 let outputBuffer = '';
+let streamingModeError = null;
 
 // Create AttachServer to spawn Claude with PTY
 const server = new AttachServer({
@@ -153,6 +155,11 @@ server.on('output', (data) => {
 
     for (const line of lines) {
       if (!line.trim()) continue;
+      const detectedError = detectStreamingModeError(line);
+      if (detectedError) {
+        streamingModeError = { ...detectedError, timestamp };
+        continue;
+      }
       try {
         const json = JSON.parse(line);
         if (json.structured_output) {
@@ -169,6 +176,11 @@ server.on('output', (data) => {
     outputBuffer = lines.pop() || '';
 
     for (const line of lines) {
+      const detectedError = detectStreamingModeError(line);
+      if (detectedError) {
+        streamingModeError = { ...detectedError, timestamp };
+        continue;
+      }
       log(`[${timestamp}]${line}\n`);
     }
   }
@@ -181,7 +193,10 @@ server.on('exit', ({ exitCode, signal }) => {
 
   // Flush remaining buffered output
   if (outputBuffer.trim()) {
-    if (silentJsonMode) {
+    const detectedError = detectStreamingModeError(outputBuffer);
+    if (detectedError) {
+      streamingModeError = { ...detectedError, timestamp };
+    } else if (silentJsonMode) {
       try {
         const json = JSON.parse(outputBuffer);
         if (json.structured_output) {
@@ -192,6 +207,25 @@ server.on('exit', ({ exitCode, signal }) => {
       }
     } else {
       log(`[${timestamp}]${outputBuffer}\n`);
+    }
+  }
+
+  let recovered = null;
+  if (code !== 0 && streamingModeError?.sessionId) {
+    recovered = recoverStructuredOutput(streamingModeError.sessionId);
+    if (recovered?.payload) {
+      const recoveredLine = JSON.stringify(recovered.payload);
+      if (silentJsonMode) {
+        finalResultJson = recoveredLine;
+      } else {
+        log(`[${timestamp}]${recoveredLine}\n`);
+      }
+    } else if (streamingModeError.line) {
+      if (silentJsonMode) {
+        log(streamingModeError.line + '\n');
+      } else {
+        log(`[${streamingModeError.timestamp}]${streamingModeError.line}\n`);
+      }
     }
   }
 
@@ -208,11 +242,12 @@ server.on('exit', ({ exitCode, signal }) => {
   }
 
   // Simple status: completed if exit 0, failed otherwise
-  const status = code === 0 ? 'completed' : 'failed';
+  const resolvedCode = recovered?.payload ? 0 : code;
+  const status = resolvedCode === 0 ? 'completed' : 'failed';
   updateTask(taskId, {
     status,
-    exitCode: code,
-    error: signal ? `Killed by ${signal}` : null,
+    exitCode: resolvedCode,
+    error: resolvedCode === 0 ? null : signal ? `Killed by ${signal}` : null,
     socketPath: null, // Clear socket path on exit
   });
 

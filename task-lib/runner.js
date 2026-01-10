@@ -16,10 +16,18 @@ export function spawnTask(prompt, options = {}) {
 
   // Build claude command args
   // --print: non-interactive mode
+  // --input-format: force text input (avoid stream-json command mode)
   // --dangerously-skip-permissions: background tasks can't prompt for approval (CRITICAL)
   // --output-format: stream-json (default) for real-time, text for clean output, json for structured
   const outputFormat = options.outputFormat || 'stream-json';
-  const args = ['--print', '--dangerously-skip-permissions', '--output-format', outputFormat];
+  const args = [
+    '--print',
+    '--input-format',
+    'text',
+    '--dangerously-skip-permissions',
+    '--output-format',
+    outputFormat,
+  ];
 
   // Only add streaming options for stream-json format
   if (outputFormat === 'stream-json') {
@@ -80,9 +88,11 @@ export function spawnTask(prompt, options = {}) {
     model,
   };
 
-  // Use attachable watcher by default (unless explicitly disabled)
-  // Attachable watcher uses node-pty and creates a Unix socket for attach/detach
-  const useAttachable = options.attachable !== false;
+  // Use attachable watcher by default (unless explicitly disabled).
+  // JSON schema tasks disable PTY to avoid Claude CLI streaming-mode errors on
+  // background task notifications (PTY triggers the problematic command queue).
+  const useAttachable =
+    options.attachable !== false && !options.jsonSchema;
   const watcherScript = useAttachable
     ? join(__dirname, 'attachable-watcher.js')
     : join(__dirname, 'watcher.js');

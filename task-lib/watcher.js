@@ -14,6 +14,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { updateTask } from './store.js';
 import { createRequire } from 'module';
+import { detectStreamingModeError, recoverStructuredOutput } from './claude-recovery.js';
 
 const require = createRequire(import.meta.url);
 const { getClaudeCommand } = require('../lib/settings.js');
@@ -57,6 +58,7 @@ updateTask(taskId, { pid: child.pid });
 const silentJsonMode =
   config.outputFormat === 'json' && config.jsonSchema && config.silentJsonOutput;
 let finalResultJson = null;
+let streamingModeError = null;
 
 // Buffer for incomplete lines (need complete lines to add timestamps)
 let stdoutBuffer = '';
@@ -76,6 +78,11 @@ child.stdout.on('data', (data) => {
 
     for (const line of lines) {
       if (!line.trim()) continue;
+      const detectedError = detectStreamingModeError(line);
+      if (detectedError) {
+        streamingModeError = { ...detectedError, timestamp };
+        continue;
+      }
       try {
         const json = JSON.parse(line);
         if (json.structured_output) {
@@ -92,6 +99,11 @@ child.stdout.on('data', (data) => {
     stdoutBuffer = lines.pop() || ''; // Keep incomplete line in buffer
 
     for (const line of lines) {
+      const detectedError = detectStreamingModeError(line);
+      if (detectedError) {
+        streamingModeError = { ...detectedError, timestamp };
+        continue;
+      }
       // Timestamp each line: [epochMs]originalContent
       log(`[${timestamp}]${line}\n`);
     }
@@ -121,7 +133,10 @@ child.on('close', (code, signal) => {
 
   // Flush any remaining buffered stdout
   if (stdoutBuffer.trim()) {
-    if (silentJsonMode) {
+    const detectedError = detectStreamingModeError(stdoutBuffer);
+    if (detectedError) {
+      streamingModeError = { ...detectedError, timestamp };
+    } else if (silentJsonMode) {
       try {
         const json = JSON.parse(stdoutBuffer);
         if (json.structured_output) {
@@ -140,6 +155,25 @@ child.on('close', (code, signal) => {
     log(`[${timestamp}]${stderrBuffer}\n`);
   }
 
+  let recovered = null;
+  if (code !== 0 && streamingModeError?.sessionId) {
+    recovered = recoverStructuredOutput(streamingModeError.sessionId);
+    if (recovered?.payload) {
+      const recoveredLine = JSON.stringify(recovered.payload);
+      if (silentJsonMode) {
+        finalResultJson = recoveredLine;
+      } else {
+        log(`[${timestamp}]${recoveredLine}\n`);
+      }
+    } else if (streamingModeError.line) {
+      if (silentJsonMode) {
+        log(streamingModeError.line + '\n');
+      } else {
+        log(`[${streamingModeError.timestamp}]${streamingModeError.line}\n`);
+      }
+    }
+  }
+
   // In silent JSON mode, log ONLY the final structured_output JSON
   if (silentJsonMode && finalResultJson) {
     log(finalResultJson + '\n');
@@ -153,11 +187,12 @@ child.on('close', (code, signal) => {
   }
 
   // Simple status: completed if exit 0, failed otherwise
-  const status = code === 0 ? 'completed' : 'failed';
+  const resolvedCode = recovered?.payload ? 0 : code;
+  const status = resolvedCode === 0 ? 'completed' : 'failed';
   updateTask(taskId, {
     status,
-    exitCode: code,
-    error: signal ? `Killed by ${signal}` : null,
+    exitCode: resolvedCode,
+    error: resolvedCode === 0 ? null : signal ? `Killed by ${signal}` : null,
   });
   process.exit(0);
 });
