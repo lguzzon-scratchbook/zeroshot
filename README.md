@@ -4,64 +4,71 @@
 [![npm version](https://img.shields.io/npm/v/@covibes/zeroshot.svg)](https://www.npmjs.com/package/@covibes/zeroshot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node 18+](https://img.shields.io/badge/node-18%2B-brightgreen.svg)](https://nodejs.org/)
-[![Platform: Linux | macOS](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue.svg)]()
+![Platform: Linux | macOS](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue.svg)
 
-> **2024** was the year of LLMs. **2025** was the year of agents. **2026** is the year of agent clusters.
+Zeroshot is a multi-agent coordination engine for Claude Code. It runs a planner, worker, and validators in isolated contexts, iterating until validators approve or reject with concrete issues.
 
-**Autonomous engineering teams for Claude Code.**
+## Quick Start
 
 ```bash
-zeroshot 123  # Point at a GitHub issue, walk away, come back to working code
+npm install -g @covibes/zeroshot
+zeroshot run 123                    # GitHub issue number
 ```
+
+Or describe the task inline:
+
+```bash
+zeroshot run "Add optimistic locking with automatic retry: when updating a user,
+retry with exponential backoff up to 3 times, merge non-conflicting field changes,
+and surface conflicts with details. Handle the ABA problem where version goes A->B->A."
+```
+
+## Why Multiple Agents?
+
+Single-agent sessions degrade. Context gets buried under thousands of tokens. The model optimizes for "done" over "correct."
+
+Zeroshot fixes this with isolated agents that check each other's work. Validators can't lie about code they didn't write. Fail the check? Fix and retry until it actually works.
 
 ## Demo
-
-```bash
-zeroshot "Add optimistic locking with automatic retry: when updating a user,
-detect if another request modified it first using version numbers,
-automatically retry with exponential backoff up to 3 times,
-merge non-conflicting field changes, surface true conflicts to the caller
-with details of what conflicted. Handle the ABA problem where version goes A->B->A."
-```
 
 <p align="center">
   <img src="./docs/assets/zeroshot-demo.gif" alt="Demo" width="700">
   <br>
-  <em>Sped up 100x — 90 minutes, 5 iterations until validators approved</em>
+  <em>Sped up 100x. 90-minute run, 5 iterations until validators approved.</em>
 </p>
 
-**The full fix cycle.** Initial implementation passed basic tests but validators caught edge cases: race conditions in concurrent updates, ABA problem not fully handled, retry backoff timing issues. Each rejection triggered fixes until all 48 tests passed with 91%+ coverage.
+In this example the validators rejected the first implementation for concurrency edge cases and retry timing issues. The worker iterated until the validators could reproduce correct behavior under load.
 
-A single agent would say "done!" after the first implementation. Here, the adversarial tester actually _runs_ concurrent requests, times the retry backoff, and verifies conflict detection works under load.
+## What Makes It Different
 
-**This is what production-grade looks like.** Not "tests pass" — validators reject until it actually works. 5 iterations, each one fixing real bugs the previous attempt missed.
+- **Blind validation** - Validators never see the worker's context or code history
+- **Repeatable workflows** - Task complexity determines agent count and model selection
+- **Accept/reject loop** - Rejections include actionable findings, not vague complaints
+- **Crash recovery** - All state persisted to SQLite; resume anytime
+- **Isolation modes** - None, git worktree, or Docker container
+- **Cost control** - Model ceilings prevent runaway API spend
 
-## Why Zeroshot?
+## When to Use Zeroshot
 
-You know the problem. Your AI agent:
+Zeroshot performs best when tasks have clear acceptance criteria.
 
-- Says "tests pass" (never ran them)
-- Says "done!" (nothing works)
-- Implements 60% of what you asked
-- Ignores your coding guidelines
-- Introduces antipatterns like a junior dev
-- Gets sloppy on long tasks
+| Scenario                                        | Use | Why                       |
+| ----------------------------------------------- | --- | ------------------------- |
+| Add rate limiting (sliding window, per-IP, 429) | Yes | Clear requirements        |
+| Refactor auth to JWT                            | Yes | Defined end state         |
+| Fix login bug                                   | Yes | Success is measurable     |
+| Fix 2410 lint violations                        | Yes | Clear completion criteria |
+| Make the app faster                             | No  | Needs exploration first   |
+| Improve the codebase                            | No  | No acceptance criteria    |
+| Figure out flaky tests                          | No  | Exploratory               |
 
-**AI is extremely capable. But not when one agent does everything in one session.**
+Rule of thumb: if you cannot describe what "done" means, validators cannot verify it.
 
-Context degrades. Attention drifts. Shortcuts get taken.
+<p align="center">
+  <a href="https://discord.gg/PdZ3UEXB"><img src="https://img.shields.io/badge/Discord-Join_the_community-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+</p>
 
-Zeroshot fixes this with **multiple isolated agents** that check each other's work. The validator didn't write the code, so it can't lie about tests. Fail? Fix and retry until it works.
-
-> **Why "zeroshot"?** In ML, zero-shot means solving tasks without prior examples. Same idea here: give it a well-defined task, get back a result. No hand-holding. The multi-agent architecture handles everything internally.
-
-<div align="center">
-
-[![Join our Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/PdZ3UEXB)
-
-</div>
-
-## Install
+## Install and Requirements
 
 **Platforms**: Linux, macOS (Windows WSL not yet supported)
 
@@ -76,189 +83,82 @@ npm i -g @anthropic-ai/claude-code && claude auth login
 gh auth login
 ```
 
-## When to Use Zeroshot
-
-**Zeroshot requires well-defined tasks with clear acceptance criteria.**
-
-| Scenario                                        | Use? | Why                       |
-| ----------------------------------------------- | :--: | ------------------------- |
-| Add rate limiting (sliding window, per-IP, 429) |  ✅  | Clear requirements        |
-| Refactor auth to JWT                            |  ✅  | Defined end state         |
-| Fix login bug                                   |  ✅  | Success is measurable     |
-| Fix 2410 lint violations                        |  ✅  | Clear completion criteria |
-| Make the app faster                             |  ❌  | Needs exploration first   |
-| Improve the codebase                            |  ❌  | No acceptance criteria    |
-| Figure out flaky tests                          |  ❌  | Exploratory               |
-
-**Known unknowns** (implementation details unclear) → Zeroshot handles this. The planner figures it out.
-
-**Unknown unknowns** (don't know what you'll discover) → Use single-agent Claude Code for exploration first, then come back with a well-defined task.
-
-**Long-running batch tasks** → Zeroshot excels here. Run overnight with `-d` (daemon mode):
-
-- "Fix all 2410 semantic linting violations"
-- "Add TypeScript types to all 47 untyped files"
-- "Migrate all API calls from v1 to v2"
-
-Crash recovery (`zeroshot resume`) means multi-hour tasks survive interruptions.
-
-**Rule of thumb:** If you can't describe what "done" looks like, zeroshot's validators can't verify it.
-
----
-
-## Commands
+## Command Overview
 
 ```bash
-zeroshot run 123               # Run on GitHub issue
-zeroshot run "Add dark mode"   # Run from description
+# Run
+zeroshot run 123
+zeroshot run "Add dark mode"
 
-# Automation levels (cascading: --ship → --pr → --worktree)
-zeroshot run 123 --docker      # Docker isolation (full container)
-zeroshot run 123 --worktree    # Git worktree isolation (lightweight)
-zeroshot run 123 --pr          # Worktree + PR (human reviews)
-zeroshot run 123 --ship        # Worktree + PR + auto-merge (full automation)
+# Isolation
+zeroshot run 123 --worktree       # git worktree
+zeroshot run 123 --docker         # container
+
+# Automation (--ship implies --pr implies --worktree)
+zeroshot run 123 --pr             # worktree + create PR
+zeroshot run 123 --ship           # PR + auto-merge on approval
 
 # Background mode
-zeroshot run 123 -d            # Detached/daemon
-zeroshot run 123 --ship -d     # Full automation, background
+zeroshot run 123 -d
+zeroshot run 123 --ship -d
 
 # Control
-zeroshot list                  # See all running (--json for scripting)
-zeroshot status <id>           # Cluster status (--json for scripting)
-zeroshot logs <id> -f          # Follow output
-zeroshot resume <id>           # Continue after crash
-zeroshot kill <id>             # Stop
-zeroshot watch                 # TUI dashboard
+zeroshot list
+zeroshot status <id>
+zeroshot logs <id> -f
+zeroshot resume <id>
+zeroshot stop <id>
+zeroshot kill <id>
+zeroshot watch
 
 # Agent library
-zeroshot agents list           # View available agents
-zeroshot agents show <name>    # Agent details
+zeroshot agents list
+zeroshot agents show <name>
 
 # Maintenance
-zeroshot clean                 # Remove old records
-zeroshot purge                 # NUCLEAR: kill all + delete all
+zeroshot clean
+zeroshot purge
 ```
-
-<details>
-<summary><strong>FAQ</strong></summary>
-
-**Q: Why Claude-only (for now)?**
-
-Claude Code is the most capable agentic coding tool available. We wrap it directly - same tools, same reliability, no custom implementations to break.
-
-Multi-model support (Codex CLI, Gemini CLI) is planned - see [#19](https://github.com/covibes/zeroshot/issues/19).
-
-**Q: Why do single-agent coding sessions get sloppy?**
-
-Three failure modes compound when one agent does everything in one session:
-
-- **Context Dilution**: Your initial guidelines compete with thousands of tokens of code, errors, and edits. Instructions from 50 messages ago get buried.
-- **Success Bias**: LLMs optimize for "Task Complete" - even if that means skipping steps to get there.
-- **Error Snowball**: When fixing mistakes repeatedly, the context fills with broken code. The model starts copying its own bad patterns.
-
-Zeroshot fixes this with **isolated agents** where validators check work they didn't write - no self-grading, no shortcuts.
-
-**Q: Can I customize the team?**
-
-Yes, see CLAUDE.md. But most people never need to.
-
-**Q: Why is it called "zeroshot"?**
-
-In machine learning, "zero-shot" means solving tasks the model has never seen before - using only the task description, no prior examples needed.
-
-Same idea here: give zeroshot a well-defined task, get back a result. No examples. No iterative feedback. No hand-holding.
-
-The multi-agent architecture handles planning, implementation, and validation internally. You provide a clear problem statement. Zeroshot handles the rest.
-
-</details>
 
 ## How It Works
 
-Zeroshot is a **multi-agent coordination framework** with smart defaults.
+Zeroshot is a message-driven coordination layer with smart defaults.
 
-### Zero Config
+- The conductor classifies tasks by complexity and type.
+- A workflow template selects agents and validators.
+- Agents publish results to a SQLite ledger.
+- Validators approve or reject with specific findings.
+- Rejections route back to the worker for fixes.
 
-```bash
-zeroshot 123  # Analyzes task → picks team → done
-```
-
-The conductor classifies your task (complexity × type) and picks the right workflow:
-
-```
-                                ┌─────────────────┐
-                                │      TASK       │
-                                └────────┬────────┘
-                                         │
-                                         ▼
-                ┌────────────────────────────────────────────┐
-                │                 CONDUCTOR                  │
-                │     Complexity × TaskType → Workflow       │
-                └────────────────────────┬───────────────────┘
-                                         │
-           ┌─────────────────────────────┼─────────────────────────────┐
-           │                             │                             │
-           ▼                             ▼                             ▼
-     ┌───────────┐                ┌───────────┐                ┌───────────┐
-     │  TRIVIAL  │                │  SIMPLE   │                │ STANDARD+ │
-     │  1 agent  │──────────▶     │  worker   │                │ planner   │
-     │  (haiku)  │  COMPLETE      │ + 1 valid.│                │ + worker  │
-     │ no valid. │                └─────┬─────┘                │ + 3-5 val.│
-     └───────────┘                      │                      └─────┬─────┘
-                                        ▼                            │
-                                 ┌─────────────┐                     ▼
-                             ┌──▶│   WORKER    │             ┌─────────────┐
-                             │   └──────┬──────┘             │   PLANNER   │
-                             │          │                    └──────┬──────┘
-                             │          ▼                           │
-                             │   ┌─────────────────────┐            ▼
-                             │   │ ✓ validator         │     ┌─────────────┐
-                             │   │   (generic check)   │ ┌──▶│   WORKER    │
-                             │   └──────────┬──────────┘ │   └──────┬──────┘
-                             │       REJECT │ ALL OK     │          │
-                             └──────────────┘     │      │          ▼
-                                                  │      │   ┌──────────────────────┐
-                                                  │      │   │ ✓ requirements       │
-                                                  │      │   │ ✓ code (STANDARD+)   │
-                                                  │      │   │ ✓ security (CRIT)    │
-                                                  │      │   │ ✓ tester (CRIT)      │
-                                                  │      │   │ ✓ adversarial        │
-                                                  │      │   │   (real execution)   │
-                                                  │      │   └──────────┬───────────┘
-                                                  │      │       REJECT │ ALL OK
-                                                  │      └──────────────┘     │
-                                                  ▼                           ▼
-     ┌─────────────────────────────────────────────────────────────────────────────┐
-     │                                COMPLETE                                     │
-     └─────────────────────────────────────────────────────────────────────────────┘
-```
+### Complexity Model
 
 | Task                   | Complexity | Agents | Validators                                        |
 | ---------------------- | ---------- | ------ | ------------------------------------------------- |
 | Fix typo in README     | TRIVIAL    | 1      | None                                              |
-| Add dark mode toggle   | SIMPLE     | 2      | generic validator                                 |
-| Refactor auth system   | STANDARD   | 4      | requirements, code                                |
-| Implement payment flow | CRITICAL   | 7      | requirements, code, security, tester, adversarial |
+| Add dark mode toggle   | SIMPLE     | 2      | Generic validator                                 |
+| Refactor auth system   | STANDARD   | 4      | Requirements, code                                |
+| Implement payment flow | CRITICAL   | 7      | Requirements, code, security, tester, adversarial |
 
 ### Model Selection by Complexity
 
 | Complexity | Planner | Worker | Validators |
 | ---------- | ------- | ------ | ---------- |
-| TRIVIAL    | -       | haiku  | 0          |
+| TRIVIAL    | -       | haiku  | -          |
 | SIMPLE     | -       | sonnet | 1 (sonnet) |
 | STANDARD   | sonnet  | sonnet | 2 (sonnet) |
 | CRITICAL   | opus    | sonnet | 5 (sonnet) |
 
-Set model ceiling: `zeroshot settings set maxModel sonnet` (prevents opus)
+Set model ceiling: `zeroshot settings set maxModel sonnet`.
 
 <details>
 <summary><strong>Custom Workflows (Framework Mode)</strong></summary>
 
-Zeroshot is **message-driven** - define any agent topology:
+Zeroshot is message-driven, so you can define any agent topology.
 
-- **Expert panels**: Parallel specialists → aggregator → decision
-- **Staged gates**: Sequential validators, each with veto power
-- **Hierarchical**: Supervisor dynamically spawns workers
-- **Dynamic**: Conductor adds agents mid-execution
+- Expert panels: parallel specialists -> aggregator -> decision
+- Staged gates: sequential validators, each with veto power
+- Hierarchical: supervisor dynamically spawns workers
+- Dynamic: conductor adds agents mid-execution
 
 **Coordination primitives:**
 
@@ -269,14 +169,7 @@ Zeroshot is **message-driven** - define any agent topology:
 
 #### Creating Custom Clusters with Claude Code
 
-**The easiest way to create a custom cluster: just ask Claude Code.**
-
-```bash
-# In your zeroshot repo
-claude
-```
-
-**Example prompt:**
+Start Claude Code and describe your cluster:
 
 ```
 Create a zeroshot cluster config for security-critical features:
@@ -296,27 +189,18 @@ Look at cluster-templates/base-templates/full-workflow.json
 and create a similar cluster. Save to cluster-templates/security-review.json
 ```
 
-Claude Code will read existing templates, create valid JSON config, and iterate until it works.
+Built-in validation checks for missing triggers, deadlocks, and invalid type wiring before running.
 
-**Built-in validation catches failures before running:**
-
-- Never start (no bootstrap trigger)
-- Never complete (no path to completion)
-- Loop infinitely (circular dependencies)
-- Deadlock (impossible consensus)
-- Type mismatches (boolean → string in JSON)
-
-See [CLAUDE.md](./CLAUDE.md) for cluster config schema and examples.
+See [CLAUDE.md](./CLAUDE.md) for the cluster schema and examples.
 
 </details>
 
 ## Crash Recovery
 
-Everything saves to SQLite. If your 2-hour run crashes at 1:59:
+All state is persisted in the SQLite ledger. You can resume at any time:
 
 ```bash
 zeroshot resume cluster-bold-panther
-# Continues from exact point
 ```
 
 ## Isolation Modes
@@ -324,18 +208,18 @@ zeroshot resume cluster-bold-panther
 ### Git Worktree (Default for --pr/--ship)
 
 ```bash
-zeroshot 123 --worktree
+zeroshot run 123 --worktree
 ```
 
-Lightweight isolation using git worktree. Creates a separate working directory with its own branch. Fast (<1s setup), no Docker required. Auto-enabled with `--pr` and `--ship`.
+Lightweight isolation using git worktree. Creates a separate working directory with its own branch. Auto-enabled with `--pr` and `--ship`.
 
 ### Docker Container
 
 ```bash
-zeroshot 123 --docker
+zeroshot run 123 --docker
 ```
 
-Full isolation in a fresh container. Your workspace stays untouched. Good for risky experiments or parallel agents.
+Full isolation in a fresh container. Your workspace stays untouched. Useful for risky experiments or parallel runs.
 
 ### When to Use Which
 
@@ -347,12 +231,12 @@ Full isolation in a fresh container. Your workspace stays untouched. Good for ri
 | Running multiple tasks in parallel   | `--docker`             |
 | Full automation, no review needed    | `--ship`               |
 
-**Default mode:** Agents are instructed to only modify files (no git commit/push). You review and commit yourself.
+**Default behavior:** Agents modify files only; they do not commit or push unless using an isolation mode that explicitly allows it.
 
 <details>
 <summary><strong>Docker Credential Mounts</strong></summary>
 
-When using `--docker`, zeroshot mounts credential directories so Claude can access tools like AWS, Azure, kubectl.
+When using `--docker`, zeroshot mounts credential directories so agents can access tools like AWS, Azure, and kubectl.
 
 **Default mounts**: `gh`, `git`, `ssh` (GitHub CLI, git config, SSH keys)
 
@@ -393,7 +277,7 @@ zeroshot settings set dockerContainerHome '/home/node'
 zeroshot run 123 --docker --container-home /home/node
 ```
 
-**Env var passthrough**: Presets auto-pass related env vars (e.g., `aws` → `AWS_REGION`, `AWS_PROFILE`). Add custom:
+**Env var passthrough**: Presets auto-pass related env vars (for example, `aws` -> `AWS_REGION`, `AWS_PROFILE`). Add custom:
 
 ```bash
 zeroshot settings set dockerEnvPassthrough '["MY_API_KEY", "TF_VAR_*"]'
@@ -403,12 +287,10 @@ zeroshot settings set dockerEnvPassthrough '["MY_API_KEY", "TF_VAR_*"]'
 
 ## Resources
 
-| Resource                               | Description                                                |
-| -------------------------------------- | ---------------------------------------------------------- |
-| [CLAUDE.md](./CLAUDE.md)               | Architecture docs, cluster config schema, agent primitives |
-| [Discord](https://discord.gg/PdZ3UEXB) | Get help, share workflows, connect with the community      |
-| `zeroshot export <id>`                 | Export cluster conversation to markdown                    |
-| `sqlite3 ~/.zeroshot/*.db`             | Direct database access for debugging                       |
+- [CLAUDE.md](./CLAUDE.md) - Architecture, cluster config schema, agent primitives
+- [Discord](https://discord.gg/PdZ3UEXB) - Support and community
+- `zeroshot export <id>` - Export conversation to markdown
+- `sqlite3 ~/.zeroshot/*.db` - Direct ledger access for debugging
 
 <details>
 <summary><strong>Troubleshooting</strong></summary>
@@ -418,7 +300,7 @@ zeroshot settings set dockerEnvPassthrough '["MY_API_KEY", "TF_VAR_*"]'
 | `claude: command not found`   | `npm i -g @anthropic-ai/claude-code && claude auth login` |
 | `gh: command not found`       | [Install GitHub CLI](https://cli.github.com/)             |
 | `--docker` fails              | Docker must be running: `docker ps` to verify             |
-| Cluster stuck                 | `zeroshot resume <id>` to continue with guidance          |
+| Cluster stuck                 | `zeroshot resume <id>` to continue                        |
 | Agent keeps failing           | Check `zeroshot logs <id>` for actual error               |
 | `zeroshot: command not found` | `npm install -g @covibes/zeroshot`                        |
 
@@ -428,12 +310,12 @@ zeroshot settings set dockerEnvPassthrough '["MY_API_KEY", "TF_VAR_*"]'
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before participating.
 
 For security issues, see [SECURITY.md](SECURITY.md).
 
 ---
 
-MIT — [Covibes](https://github.com/covibes)
+MIT - [Covibes](https://github.com/covibes)
 
 Built on [Claude Code](https://claude.com/product/claude-code) by Anthropic.
