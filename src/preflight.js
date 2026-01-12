@@ -290,10 +290,13 @@ function runPreflight(options = {}) {
   const warnings = [];
 
   const { loadSettings, getClaudeCommand } = require('../lib/settings.js');
+  const { normalizeProviderName } = require('../lib/provider-names');
   const settings = loadSettings();
-  const providerName = options.provider || settings.defaultProvider || 'anthropic';
+  const providerName = normalizeProviderName(
+    options.provider || settings.defaultProvider || 'claude'
+  );
 
-  if (providerName === 'anthropic') {
+  if (providerName === 'claude') {
     const { command, args } = getClaudeCommand();
     const claudeCommand = options.claudeCommand || [command, ...args].join(' ');
 
@@ -341,7 +344,7 @@ function runPreflight(options = {}) {
         )
       );
     }
-  } else if (providerName === 'openai') {
+  } else if (providerName === 'codex') {
     if (!commandExists('codex')) {
       errors.push(
         formatError('Codex CLI not available', 'Command "codex" not installed', [
@@ -350,7 +353,7 @@ function runPreflight(options = {}) {
         ])
       );
     }
-  } else if (providerName === 'google') {
+  } else if (providerName === 'gemini') {
     if (!commandExists('gemini')) {
       errors.push(
         formatError('Gemini CLI not available', 'Command "gemini" not installed', [
@@ -362,7 +365,7 @@ function runPreflight(options = {}) {
   } else {
     errors.push(
       formatError('Unknown provider', `Provider "${providerName}" is not supported`, [
-        'Use anthropic, openai, or google',
+        'Use claude, codex, or gemini',
       ])
     );
   }

@@ -9,9 +9,9 @@ const assert = require('assert');
 
 describe('Provider CLI Builders', function () {
   // ============================================================================
-  // OPENAI PROVIDER
+  // CODEX PROVIDER
   // ============================================================================
-  describe('OpenAI CLI Builder', function () {
+  describe('Codex CLI Builder', function () {
     const { buildCommand } = require('../src/providers/openai/cli-builder');
 
     it('should pass --output-schema when CLI supports it', function () {
@@ -83,9 +83,9 @@ describe('Provider CLI Builders', function () {
   });
 
   // ============================================================================
-  // GOOGLE PROVIDER
+  // GEMINI PROVIDER
   // ============================================================================
-  describe('Google CLI Builder', function () {
+  describe('Gemini CLI Builder', function () {
     const { buildCommand } = require('../src/providers/google/cli-builder');
 
     it('should always inject schema into context (no native support)', function () {
@@ -128,9 +128,9 @@ describe('Provider CLI Builders', function () {
   });
 
   // ============================================================================
-  // ANTHROPIC PROVIDER
+  // CLAUDE PROVIDER
   // ============================================================================
-  describe('Anthropic CLI Builder', function () {
+  describe('Claude CLI Builder', function () {
     const { buildCommand } = require('../src/providers/anthropic/cli-builder');
 
     it('should pass --json-schema when CLI supports it', function () {
@@ -171,8 +171,8 @@ describe('Provider CLI Builders', function () {
   // REGRESSION TESTS
   // ============================================================================
   describe('Regression Tests', function () {
-    it('REGRESSION: OpenAI planner returns markdown when schema not enforced', function () {
-      // This was the bug: OpenAI CLI doesn't support --output-schema,
+    it('REGRESSION: Codex planner returns markdown when schema not enforced', function () {
+      // This was the bug: Codex CLI doesn't support --output-schema,
       // so schema was silently dropped and model returned markdown
       const { buildCommand } = require('../src/providers/openai/cli-builder');
 
@@ -211,8 +211,8 @@ describe('Provider CLI Builders', function () {
       assert.ok(finalContext.includes('"summary"'), 'Schema must include summary property');
     });
 
-    it('REGRESSION: Google conductor returns text when schema not enforced', function () {
-      // Google CLI has no --output-schema support at all
+    it('REGRESSION: Gemini conductor returns text when schema not enforced', function () {
+      // Gemini CLI has no --output-schema support at all
       const { buildCommand } = require('../src/providers/google/cli-builder');
 
       const conductorSchema = {
@@ -237,7 +237,7 @@ describe('Provider CLI Builders', function () {
       // Must have schema injection
       assert.ok(
         finalContext.includes('OUTPUT FORMAT'),
-        'Schema instructions must always be injected for Google provider'
+        'Schema instructions must always be injected for Gemini provider'
       );
 
       // Must include the actual schema properties

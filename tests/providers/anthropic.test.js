@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { parseChunk } = require('../../src/providers/anthropic/output-parser');
 
-describe('Anthropic provider parser', () => {
+describe('Claude provider parser', () => {
   it('parses text, tool, and result events', () => {
     const chunk = [
       JSON.stringify({

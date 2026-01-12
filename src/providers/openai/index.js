@@ -14,7 +14,7 @@ const warned = new Set();
 
 class OpenAIProvider extends BaseProvider {
   constructor() {
-    super({ name: 'openai', displayName: 'Codex', cliCommand: 'codex' });
+    super({ name: 'codex', displayName: 'Codex', cliCommand: 'codex' });
     this._cliFeatures = null;
     this._unknownEventCounts = new Map();
   }
@@ -70,21 +70,21 @@ class OpenAIProvider extends BaseProvider {
 
     if (options.autoApprove && cliFeatures.supportsAutoApprove === false) {
       this._warnOnce(
-        'openai-auto-approve',
+        'codex-auto-approve',
         'Codex CLI does not support auto-approve; continuing without bypass flag.'
       );
     }
 
     if (options.jsonSchema && cliFeatures.supportsOutputSchema === false) {
       this._warnOnce(
-        'openai-jsonschema',
+        'codex-jsonschema',
         'Codex CLI does not support --output-schema; skipping schema flag.'
       );
     }
 
     if (options.modelSpec?.reasoningEffort && cliFeatures.supportsConfigOverride === false) {
       this._warnOnce(
-        'openai-reasoning',
+        'codex-reasoning',
         'Codex CLI does not support --config overrides; skipping reasoningEffort.'
       );
     }
@@ -128,7 +128,7 @@ class OpenAIProvider extends BaseProvider {
     const current = this._unknownEventCounts.get(type) || 0;
     if (current >= 5) return;
     this._unknownEventCounts.set(type, current + 1);
-    console.debug(`[openai] Unknown event type: ${type}`);
+    console.debug(`[codex] Unknown event type: ${type}`);
   }
 }
 

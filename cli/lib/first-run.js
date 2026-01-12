@@ -77,7 +77,7 @@ function promptProvider(rl, detected) {
  */
 function promptModel(rl) {
   return new Promise((resolve) => {
-    console.log('What is the maximum Anthropic model agents can use? (cost ceiling)\n');
+    console.log('What is the maximum Claude model agents can use? (cost ceiling)\n');
     console.log('  1) sonnet  - Agents can use sonnet or haiku (recommended)');
     console.log('  2) opus    - Agents can use opus, sonnet, or haiku');
     console.log('  3) haiku   - Agents can only use haiku (lowest cost)\n');
@@ -128,7 +128,7 @@ function printComplete(settings) {
 
 Your settings:
   • Provider:     ${settings.defaultProvider}
-  • Max model:    ${settings.maxModel} (Anthropic ceiling)
+  • Max model:    ${settings.maxModel} (Claude ceiling)
   • Auto-updates: ${settings.autoCheckUpdates ? 'enabled' : 'disabled'}
 
 Change anytime with: zeroshot settings set <key> <value>

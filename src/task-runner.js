@@ -13,7 +13,7 @@ class TaskRunner {
    * @param {Object} _options - Execution options
    * @param {string} _options.agentId - Identifier for this agent/task
    * @param {string} _options.model - Model to use (provider-specific model id)
-   * @param {string} [_options.provider] - Provider to use (anthropic|openai|google)
+   * @param {string} [_options.provider] - Provider to use (claude|codex|gemini)
    * @param {object} [_options.modelSpec] - Resolved model spec (level/model/reasoningEffort)
    * @param {string} [_options.outputFormat] - Output format ('text', 'json', 'stream-json')
    * @param {Object} [_options.jsonSchema] - JSON schema for structured output validation

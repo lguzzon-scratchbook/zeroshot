@@ -97,7 +97,7 @@ describe('Output Extraction Module', function () {
     });
 
     it('should return null for type:result WITHOUT content', function () {
-      // This is the critical case for non-Anthropic providers
+      // This is the critical case for non-Claude providers
       const output = '{"type":"result","success":true}';
       const result = extractFromResultWrapper(output);
       assert.strictEqual(result, null);
@@ -119,22 +119,22 @@ describe('Output Extraction Module', function () {
   // STRATEGY 2: TEXT EVENTS EXTRACTION
   // ============================================================================
   describe('extractFromTextEvents', function () {
-    it('should extract from Anthropic text events', function () {
-      // Anthropic stream_event format
+    it('should extract from Claude text events', function () {
+      // Claude stream_event format
       const output = `{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"foo\\":\\"bar\\"}"}}}`;
-      const result = extractFromTextEvents(output, 'anthropic');
+      const result = extractFromTextEvents(output, 'claude');
       assert.deepStrictEqual(result, { foo: 'bar' });
     });
 
-    it('should extract from OpenAI item.created events', function () {
+    it('should extract from Codex item.created events', function () {
       const output = `{"type":"item.created","item":{"type":"message","role":"assistant","content":[{"type":"text","text":"{\\"foo\\":\\"bar\\"}"}]}}`;
-      const result = extractFromTextEvents(output, 'openai');
+      const result = extractFromTextEvents(output, 'codex');
       assert.deepStrictEqual(result, { foo: 'bar' });
     });
 
-    it('should extract from Google message events', function () {
+    it('should extract from Gemini message events', function () {
       const output = `{"type":"message","role":"assistant","content":"{\\"foo\\":\\"bar\\"}"}`;
-      const result = extractFromTextEvents(output, 'google');
+      const result = extractFromTextEvents(output, 'gemini');
       assert.deepStrictEqual(result, { foo: 'bar' });
     });
 
@@ -142,19 +142,19 @@ describe('Output Extraction Module', function () {
       // Multiple text deltas that form a complete JSON
       const output = `{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"foo\\":"}}}
 {"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"\\"bar\\"}"}}}`;
-      const result = extractFromTextEvents(output, 'anthropic');
+      const result = extractFromTextEvents(output, 'claude');
       assert.deepStrictEqual(result, { foo: 'bar' });
     });
 
     it('should return null when no text events', function () {
       const output = '{"type":"system","subtype":"init"}';
-      const result = extractFromTextEvents(output, 'anthropic');
+      const result = extractFromTextEvents(output, 'claude');
       assert.strictEqual(result, null);
     });
 
     it('should handle text containing markdown', function () {
       const output = `{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"\`\`\`json\\n{\\"foo\\":\\"bar\\"}\\n\`\`\`"}}}`;
-      const result = extractFromTextEvents(output, 'anthropic');
+      const result = extractFromTextEvents(output, 'claude');
       assert.deepStrictEqual(result, { foo: 'bar' });
     });
   });
@@ -259,10 +259,10 @@ describe('Output Extraction Module', function () {
   // FULL PIPELINE INTEGRATION
   // ============================================================================
   describe('extractJsonFromOutput (full pipeline)', function () {
-    describe('Anthropic Provider', function () {
+    describe('Claude Provider', function () {
       it('should extract from result wrapper', function () {
         const output = '{"type":"result","result":{"complexity":"SIMPLE","taskType":"INQUIRY"}}';
-        const result = extractJsonFromOutput(output, 'anthropic');
+        const result = extractJsonFromOutput(output, 'claude');
         assert.strictEqual(result.complexity, 'SIMPLE');
         assert.strictEqual(result.taskType, 'INQUIRY');
       });
@@ -271,29 +271,30 @@ describe('Output Extraction Module', function () {
         const output = `[1768207505878]{"type":"system","subtype":"init"}
 [1768207506000]{"type":"assistant","message":{"content":[]}}
 [1768207508291]{"type":"result","result":{"complexity":"STANDARD","taskType":"TASK"}}`;
-        const result = extractJsonFromOutput(output, 'anthropic');
+        const result = extractJsonFromOutput(output, 'claude');
         assert.strictEqual(result.complexity, 'STANDARD');
       });
 
       it('should extract from text events when no result wrapper', function () {
-        const output = '{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"complexity\\":\\"TRIVIAL\\"}"}}}';
-        const result = extractJsonFromOutput(output, 'anthropic');
+        const output =
+          '{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"complexity\\":\\"TRIVIAL\\"}"}}}';
+        const result = extractJsonFromOutput(output, 'claude');
         assert.strictEqual(result.complexity, 'TRIVIAL');
       });
     });
 
-    describe('OpenAI Provider', function () {
+    describe('Codex Provider', function () {
       it('should extract from text events (not turn.completed)', function () {
         const output = `{"type":"item.created","item":{"type":"message","role":"assistant","content":[{"type":"text","text":"{\\"complexity\\":\\"SIMPLE\\",\\"taskType\\":\\"INQUIRY\\"}"}]}}
 {"type":"turn.completed","usage":{"input_tokens":100}}`;
-        const result = extractJsonFromOutput(output, 'openai');
+        const result = extractJsonFromOutput(output, 'codex');
         assert.strictEqual(result.complexity, 'SIMPLE');
         assert.strictEqual(result.taskType, 'INQUIRY');
       });
 
       it('should extract raw JSON output', function () {
         const output = '{"complexity":"STANDARD","taskType":"TASK"}';
-        const result = extractJsonFromOutput(output, 'openai');
+        const result = extractJsonFromOutput(output, 'codex');
         assert.strictEqual(result.complexity, 'STANDARD');
       });
 
@@ -302,50 +303,50 @@ describe('Output Extraction Module', function () {
   "complexity": "CRITICAL",
   "taskType": "DEBUG"
 }`;
-        const result = extractJsonFromOutput(output, 'openai');
+        const result = extractJsonFromOutput(output, 'codex');
         assert.strictEqual(result.complexity, 'CRITICAL');
         assert.strictEqual(result.taskType, 'DEBUG');
       });
     });
 
-    describe('Google Provider', function () {
+    describe('Gemini Provider', function () {
       it('should extract from message events', function () {
         const output = `{"type":"message","role":"assistant","content":"{\\"complexity\\":\\"SIMPLE\\"}"}
 {"type":"result","success":true}`;
-        const result = extractJsonFromOutput(output, 'google');
+        const result = extractJsonFromOutput(output, 'gemini');
         assert.strictEqual(result.complexity, 'SIMPLE');
       });
 
       it('should extract raw JSON output', function () {
         const output = '{"complexity":"STANDARD","taskType":"TASK"}';
-        const result = extractJsonFromOutput(output, 'google');
+        const result = extractJsonFromOutput(output, 'gemini');
         assert.strictEqual(result.complexity, 'STANDARD');
       });
     });
 
     describe('Edge Cases', function () {
       it('should return null for empty output', function () {
-        assert.strictEqual(extractJsonFromOutput('', 'anthropic'), null);
-        assert.strictEqual(extractJsonFromOutput(null, 'anthropic'), null);
+        assert.strictEqual(extractJsonFromOutput('', 'claude'), null);
+        assert.strictEqual(extractJsonFromOutput(null, 'claude'), null);
       });
 
       it('should return null for Task not found', function () {
-        assert.strictEqual(extractJsonFromOutput('Task not found', 'anthropic'), null);
+        assert.strictEqual(extractJsonFromOutput('Task not found', 'claude'), null);
       });
 
       it('should return null for Process terminated', function () {
-        assert.strictEqual(extractJsonFromOutput('Process terminated by signal', 'anthropic'), null);
+        assert.strictEqual(extractJsonFromOutput('Process terminated by signal', 'claude'), null);
       });
 
       it('should return null for plain text', function () {
-        assert.strictEqual(extractJsonFromOutput('Just some text', 'anthropic'), null);
+        assert.strictEqual(extractJsonFromOutput('Just some text', 'claude'), null);
       });
 
       it('should handle markdown in any provider', function () {
         const output = 'Here is the result:\n\n```json\n{"foo":"bar"}\n```\n\nDone.';
-        assert.deepStrictEqual(extractJsonFromOutput(output, 'anthropic'), { foo: 'bar' });
-        assert.deepStrictEqual(extractJsonFromOutput(output, 'openai'), { foo: 'bar' });
-        assert.deepStrictEqual(extractJsonFromOutput(output, 'google'), { foo: 'bar' });
+        assert.deepStrictEqual(extractJsonFromOutput(output, 'claude'), { foo: 'bar' });
+        assert.deepStrictEqual(extractJsonFromOutput(output, 'codex'), { foo: 'bar' });
+        assert.deepStrictEqual(extractJsonFromOutput(output, 'gemini'), { foo: 'bar' });
       });
     });
 
@@ -354,14 +355,15 @@ describe('Output Extraction Module', function () {
         // Both result wrapper and text events present - wrapper should win
         const output = `{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"source\\":\\"text\\"}"}}}
 {"type":"result","result":{"source":"wrapper"}}`;
-        const result = extractJsonFromOutput(output, 'anthropic');
+        const result = extractJsonFromOutput(output, 'claude');
         assert.strictEqual(result.source, 'wrapper');
       });
 
       it('should prefer text events over markdown', function () {
         // Text events should be extracted before trying markdown
-        const output = '{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"source\\":\\"text\\"}"}}}';
-        const result = extractJsonFromOutput(output, 'anthropic');
+        const output =
+          '{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\\"source\\":\\"text\\"}"}}}';
+        const result = extractJsonFromOutput(output, 'claude');
         assert.strictEqual(result.source, 'text');
       });
     });
@@ -371,21 +373,21 @@ describe('Output Extraction Module', function () {
   // REGRESSION TESTS
   // ============================================================================
   describe('Regression Tests', function () {
-    it('REGRESSION: OpenAI turn.completed without result field', function () {
+    it('REGRESSION: Codex turn.completed without result field', function () {
       // The original bug: turn.completed has type:result but no result field
       const output = `{"type":"thread.started"}
 {"type":"item.created","item":{"type":"message","role":"assistant","content":[{"type":"text","text":"{\\"complexity\\":\\"SIMPLE\\",\\"taskType\\":\\"INQUIRY\\",\\"reasoning\\":\\"Quick question\\"}"}]}}
 {"type":"turn.completed","usage":{"input_tokens":3194,"output_tokens":50}}`;
-      const result = extractJsonFromOutput(output, 'openai');
+      const result = extractJsonFromOutput(output, 'codex');
       assert.strictEqual(result.complexity, 'SIMPLE');
       assert.strictEqual(result.taskType, 'INQUIRY');
       assert.ok(result.reasoning);
     });
 
-    it('REGRESSION: Google result event without result field', function () {
+    it('REGRESSION: Gemini result event without result field', function () {
       const output = `{"type":"message","role":"assistant","content":"{\\"complexity\\":\\"CRITICAL\\",\\"taskType\\":\\"DEBUG\\"}"}
 {"type":"result","success":true}`;
-      const result = extractJsonFromOutput(output, 'google');
+      const result = extractJsonFromOutput(output, 'gemini');
       assert.strictEqual(result.complexity, 'CRITICAL');
       assert.strictEqual(result.taskType, 'DEBUG');
     });
@@ -396,7 +398,7 @@ describe('Output Extraction Module', function () {
   "taskType": "TASK",
   "reasoning": "Multi-file implementation"
 }`;
-      const result = extractJsonFromOutput(output, 'openai');
+      const result = extractJsonFromOutput(output, 'codex');
       assert.strictEqual(result.complexity, 'STANDARD');
       assert.strictEqual(result.taskType, 'TASK');
     });
@@ -409,14 +411,15 @@ describe('Output Extraction Module', function () {
 \`\`\`
 
 Done.`;
-      const result = extractJsonFromOutput(output, 'anthropic');
+      const result = extractJsonFromOutput(output, 'claude');
       assert.strictEqual(result.complexity, 'SIMPLE');
       assert.strictEqual(result.taskType, 'TASK');
     });
 
     it('REGRESSION: Result string containing markdown', function () {
-      const output = '{"type":"result","result":"```json\\n{\\"complexity\\":\\"TRIVIAL\\"}\\n```"}';
-      const result = extractJsonFromOutput(output, 'anthropic');
+      const output =
+        '{"type":"result","result":"```json\\n{\\"complexity\\":\\"TRIVIAL\\"}\\n```"}';
+      const result = extractJsonFromOutput(output, 'claude');
       assert.strictEqual(result.complexity, 'TRIVIAL');
     });
   });

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseChunk } = require('../../src/providers/google/output-parser');
 
-describe('Google provider parser', () => {
+describe('Gemini provider parser', () => {
   it('parses assistant text output', () => {
     const fixture = fs.readFileSync(
       path.join(__dirname, '..', 'fixtures', 'gemini', 'text.jsonl'),

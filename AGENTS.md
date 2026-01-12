@@ -70,7 +70,7 @@ UX modes:
 - Daemon (`-d`): background, Ctrl+C detaches.
 - Attach (`zeroshot attach`): connect to daemon, Ctrl+C detaches only.
 
-Settings: `defaultProvider`, `providerSettings` (levels/overrides), legacy `maxModel`, `defaultConfig`, `logLevel`.
+Settings: `defaultProvider`, `providerSettings` (claude/codex/gemini), legacy `maxModel`, `defaultConfig`, `logLevel`.
 
 ## Architecture
 
@@ -111,8 +111,9 @@ Agent A -> publish() -> SQLite Ledger -> LogicEngine -> trigger match -> Agent B
 
 - Use `modelLevel` (`level1`/`level2`/`level3`) for provider-agnostic configs.
 - Set `provider` per agent or `defaultProvider`/`forceProvider` at cluster level.
+- Provider names use CLI identifiers: `claude`, `codex`, `gemini` (legacy `anthropic`/`openai`/`google` map to these).
 - `model` remains a provider-specific escape hatch.
-- OpenAI-only: `reasoningEffort` (`low|medium|high|xhigh`).
+- Codex-only: `reasoningEffort` (`low|medium|high|xhigh`).
 
 ### Logic Script API
 

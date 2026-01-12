@@ -10,6 +10,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { updateTask } from './store.js';
 import { detectStreamingModeError, recoverStructuredOutput } from './claude-recovery.js';
+import { createRequire } from 'module';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔴 CRITICAL: Global error handlers - MUST be installed BEFORE any async ops
@@ -60,9 +61,9 @@ process.on('unhandledRejection', (reason) => {
   crashWithError(reason, 'unhandledRejection');
 });
 
-import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { AttachServer } = require('../src/attach');
+const { normalizeProviderName } = require('../lib/provider-names');
 
 const taskId = taskIdArg;
 const cwd = cwdArg;
@@ -81,8 +82,8 @@ function log(msg) {
   appendFileSync(logFile, msg);
 }
 
-const providerName = config.provider || 'anthropic';
-const enableRecovery = providerName === 'anthropic';
+const providerName = normalizeProviderName(config.provider || 'claude');
+const enableRecovery = providerName === 'claude';
 
 const env = { ...process.env, ...(config.env || {}) };
 const command = config.command || 'claude';

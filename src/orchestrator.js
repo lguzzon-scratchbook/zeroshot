@@ -43,6 +43,7 @@ const { generateName } = require('./name-generator');
 const configValidator = require('./config-validator');
 const TemplateResolver = require('./template-resolver');
 const { loadSettings } = require('../lib/settings');
+const { normalizeProviderName } = require('../lib/provider-names');
 const crypto = require('crypto');
 
 function applyModelOverride(agentConfig, modelOverride) {
@@ -638,11 +639,9 @@ class Orchestrator {
       // Create container with workspace mounted
       // CRITICAL: Use options.cwd (git repo root) instead of process.cwd()
       const workDir = options.cwd || process.cwd();
-      const providerName =
-        config.forceProvider ||
-        config.defaultProvider ||
-        loadSettings().defaultProvider ||
-        'anthropic';
+      const providerName = normalizeProviderName(
+        config.forceProvider || config.defaultProvider || loadSettings().defaultProvider || 'claude'
+      );
       containerId = await isolationManager.createContainer(clusterId, {
         workDir,
         image,
@@ -1423,11 +1422,12 @@ class Orchestrator {
           );
         }
 
-        const providerName =
+        const providerName = normalizeProviderName(
           cluster.config?.forceProvider ||
-          cluster.config?.defaultProvider ||
-          loadSettings().defaultProvider ||
-          'anthropic';
+            cluster.config?.defaultProvider ||
+            loadSettings().defaultProvider ||
+            'claude'
+        );
         const newContainerId = await cluster.isolation.manager.createContainer(clusterId, {
           workDir, // Use saved workDir, NOT process.cwd()
           image: cluster.isolation.image,
@@ -2385,7 +2385,9 @@ return true;`,
         const content = msg.content?.data?.line || msg.content?.data?.chunk || msg.content?.text;
         if (!content) continue;
 
-        const provider = msg.content?.data?.provider || msg.sender_provider || 'anthropic';
+        const provider = normalizeProviderName(
+          msg.content?.data?.provider || msg.sender_provider || 'claude'
+        );
         const events = parseProviderChunk(provider, content);
         for (const event of events) {
           switch (event.type) {

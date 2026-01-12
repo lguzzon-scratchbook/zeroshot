@@ -7,6 +7,7 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { loadSettings } = require('../lib/settings.js');
+const { normalizeProviderName } = require('../lib/provider-names');
 const { getProvider } = require('../src/providers');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -19,7 +20,9 @@ export async function spawnTask(prompt, options = {}) {
   const cwd = options.cwd || process.cwd();
 
   const settings = loadSettings();
-  const providerName = options.provider || settings.defaultProvider || 'anthropic';
+  const providerName = normalizeProviderName(
+    options.provider || settings.defaultProvider || 'claude'
+  );
   const provider = getProvider(providerName);
   const providerSettings = settings.providerSettings?.[providerName] || {};
   const levelOverrides = providerSettings.levelOverrides || {};
@@ -57,7 +60,7 @@ export async function spawnTask(prompt, options = {}) {
   });
 
   const finalArgs = [...commandSpec.args];
-  if (providerName === 'anthropic') {
+  if (providerName === 'claude') {
     const promptIndex = finalArgs.length - 1;
     if (options.resume) {
       finalArgs.splice(promptIndex, 0, '--resume', options.resume);

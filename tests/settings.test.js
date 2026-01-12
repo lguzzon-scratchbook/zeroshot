@@ -67,7 +67,7 @@ describe('Settings System', function () {
     assert.strictEqual(DEFAULT_SETTINGS.defaultDocker, false);
     assert.strictEqual(DEFAULT_SETTINGS.strictSchema, true);
     assert.strictEqual(DEFAULT_SETTINGS.logLevel, 'normal');
-    assert.strictEqual(DEFAULT_SETTINGS.defaultProvider, 'anthropic');
+    assert.strictEqual(DEFAULT_SETTINGS.defaultProvider, 'claude');
     assert.ok(DEFAULT_SETTINGS.providerSettings);
   });
 

@@ -90,9 +90,9 @@ npm i -g @openai/codex
 npm i -g @google/gemini-cli
 
 # Authenticate with the provider CLI
-claude login        # Anthropic
-codex login         # OpenAI
-gemini auth login   # Google
+claude login        # Claude
+codex login         # Codex
+gemini auth login   # Gemini
 
 # GitHub auth (for issue numbers)
 gh auth login
@@ -104,8 +104,8 @@ Zeroshot shells out to provider CLIs. Pick a default and override per run:
 
 ```bash
 zeroshot providers
-zeroshot providers set-default openai
-zeroshot run 123 --provider google
+zeroshot providers set-default codex
+zeroshot run 123 --provider gemini
 ```
 
 See `docs/providers.md` for setup, model levels, and Docker mounts.
@@ -171,7 +171,7 @@ zeroshot watch
 
 # Providers
 zeroshot providers
-zeroshot providers set-default openai
+zeroshot providers set-default codex
 
 # Agent library
 zeroshot agents list
@@ -211,7 +211,7 @@ Zeroshot is a message-driven coordination layer with smart defaults.
 | CRITICAL   | level3  | level2 | 5 (level2) |
 
 Levels map to provider-specific models. Configure with `zeroshot providers setup <provider>` or
-`settings.providerSettings`. (Legacy `maxModel` applies to Anthropic only.)
+`settings.providerSettings`. (Legacy `maxModel` applies to Claude only.)
 
 <details>
 <summary><strong>Custom Workflows (Framework Mode)</strong></summary>

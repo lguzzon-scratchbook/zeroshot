@@ -13,6 +13,7 @@
 const LogicEngine = require('./logic-engine');
 const { validateAgentConfig } = require('./agent/agent-config');
 const { loadSettings, validateModelAgainstMax } = require('../lib/settings');
+const { normalizeProviderName } = require('../lib/provider-names');
 const { getProvider } = require('./providers');
 const { buildContext } = require('./agent/agent-context-builder');
 const { findMatchingTrigger, evaluateTrigger } = require('./agent/agent-trigger-evaluator');
@@ -124,13 +125,14 @@ class AgentWrapper {
     const settings = loadSettings();
     const clusterConfig = this.cluster?.config || {};
 
-    return (
+    const resolved =
       clusterConfig.forceProvider ||
       this.config.provider ||
       clusterConfig.defaultProvider ||
       settings.defaultProvider ||
-      'anthropic'
-    );
+      'claude';
+
+    return normalizeProviderName(resolved) || 'claude';
   }
 
   _resolveModelSpec() {
@@ -242,7 +244,7 @@ class AgentWrapper {
 
   /**
    * Select model based on current iteration and agent config
-   * Enforces legacy maxModel/minModel for Anthropics' haiku/sonnet/opus
+   * Enforces legacy maxModel/minModel for Claude's haiku/sonnet/opus
    * @returns {string|null}
    * @private
    */

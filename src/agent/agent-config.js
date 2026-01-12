@@ -80,7 +80,7 @@ function validateAgentConfig(config, options = {}) {
 
   if (modelConfig.type === 'static') {
     if (modelConfig.model && VALID_MODELS.includes(modelConfig.model)) {
-      // Static model: validate once (legacy Anthropic models only)
+      // Static model: validate once (legacy Claude models only)
       try {
         validateModelAgainstMax(modelConfig.model, maxModel, minModel);
       } catch (error) {

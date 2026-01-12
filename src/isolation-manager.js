@@ -15,6 +15,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { loadSettings } = require('../lib/settings');
+const { normalizeProviderName } = require('../lib/provider-names');
 const { resolveMounts, resolveEnvs, expandEnvPatterns } = require('../lib/docker-config');
 const { getProvider } = require('./providers');
 
@@ -133,7 +134,9 @@ class IsolationManager {
 
     // Resolve container home directory EARLY - needed for Claude config mount and hooks
     const settings = loadSettings();
-    const providerName = config.provider || settings.defaultProvider || 'anthropic';
+    const providerName = normalizeProviderName(
+      config.provider || settings.defaultProvider || 'claude'
+    );
     const containerHome = config.containerHome || settings.dockerContainerHome || '/root';
 
     // Create fresh Claude config dir for this cluster (avoids permission issues from host)
@@ -233,7 +236,7 @@ class IsolationManager {
     }
 
     // Warn when provider credentials are likely missing
-    if (providerName !== 'anthropic') {
+    if (providerName !== 'claude') {
       const provider = getProvider(providerName);
       const credentialPaths = provider.getCredentialPaths ? provider.getCredentialPaths() : [];
       const expandedCreds = credentialPaths.map((cred) => expandHomePath(cred));
@@ -1264,17 +1267,23 @@ class IsolationManager {
       }
 
       try {
-        execSync(`git worktree add -b ${escapeShell(branchName)} ${escapeShell(worktreePath)} HEAD`, {
-          cwd: repoRoot,
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        execSync(
+          `git worktree add -b ${escapeShell(branchName)} ${escapeShell(worktreePath)} HEAD`,
+          {
+            cwd: repoRoot,
+            encoding: 'utf8',
+            stdio: 'pipe',
+          }
+        );
         break;
       } catch (err) {
-        const stderr = (err && (err.stderr || err.message) ? String(err.stderr || err.message) : '')
-          .toLowerCase();
+        const stderr = (
+          err && (err.stderr || err.message) ? String(err.stderr || err.message) : ''
+        ).toLowerCase();
         const isBranchCollision =
-          stderr.includes('already exists') || stderr.includes('cannot delete branch') || stderr.includes('checked out');
+          stderr.includes('already exists') ||
+          stderr.includes('cannot delete branch') ||
+          stderr.includes('checked out');
 
         if (attempt < 9 && isBranchCollision) {
           branchName = `${baseBranchName}-${crypto.randomBytes(3).toString('hex')}`;
@@ -1313,7 +1322,11 @@ class IsolationManager {
     } catch {
       // If git worktree metadata is stale, prune and retry once.
       try {
-        execSync('git worktree prune', { cwd: worktreeInfo.repoRoot, encoding: 'utf8', stdio: 'pipe' });
+        execSync('git worktree prune', {
+          cwd: worktreeInfo.repoRoot,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
       } catch {
         // ignore
       }
@@ -1331,7 +1344,11 @@ class IsolationManager {
           // ignore
         }
         try {
-          execSync('git worktree prune', { cwd: worktreeInfo.repoRoot, encoding: 'utf8', stdio: 'pipe' });
+          execSync('git worktree prune', {
+            cwd: worktreeInfo.repoRoot,
+            encoding: 'utf8',
+            stdio: 'pipe',
+          });
         } catch {
           // ignore
         }

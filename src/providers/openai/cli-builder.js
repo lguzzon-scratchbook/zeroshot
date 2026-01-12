@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 
 /**
- * OpenAI structured outputs require additionalProperties: false on ALL object schemas.
+ * Codex structured outputs require additionalProperties: false on ALL object schemas.
  * This function recursively adds that constraint to ensure schema validation passes.
  * @param {Object} schema - JSON Schema object
  * @returns {Object} - Modified schema with additionalProperties: false on all objects
@@ -77,7 +77,7 @@ function buildCommand(context, options = {}) {
   if (jsonSchema && cliFeatures.supportsOutputSchema) {
     // CRITICAL: Codex --output-schema takes a FILE PATH, not a JSON string
     // Write schema to temp file and pass the path
-    // OpenAI requires additionalProperties: false on all object schemas
+    // Codex requires additionalProperties: false on all object schemas
     const parsedSchema = typeof jsonSchema === 'string' ? JSON.parse(jsonSchema) : jsonSchema;
     const strictSchema = enforceStrictSchema(parsedSchema);
     const schemaStr = JSON.stringify(strictSchema, null, 2);

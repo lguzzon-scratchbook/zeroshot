@@ -22,7 +22,8 @@ describe('Provider settings', function () {
     }
   });
 
-  it('validates defaultProvider values', function () {
+  it('validates defaultProvider values (including legacy aliases)', function () {
+    assert.strictEqual(validateSetting('defaultProvider', 'codex'), null);
     assert.strictEqual(validateSetting('defaultProvider', 'openai'), null);
     const error = validateSetting('defaultProvider', 'invalid-provider');
     assert.ok(error);
@@ -30,28 +31,28 @@ describe('Provider settings', function () {
 
   it('validates provider level bounds', function () {
     assert.doesNotThrow(() => {
-      validateProviderLevel('openai', 'level2', 'level1', 'level3');
+      validateProviderLevel('codex', 'level2', 'level1', 'level3');
     });
 
     assert.throws(() => {
-      validateProviderLevel('openai', 'level4', 'level1', 'level3');
+      validateProviderLevel('codex', 'level4', 'level1', 'level3');
     }, /Invalid level/);
   });
 
   it('validates provider overrides and reasoning rules', function () {
     assert.doesNotThrow(() => {
-      validateProviderSettings('openai', {
+      validateProviderSettings('codex', {
         minLevel: 'level1',
         maxLevel: 'level3',
         defaultLevel: 'level2',
         levelOverrides: {
-          level1: { model: 'openai-model-main', reasoningEffort: 'low' },
+          level1: { model: 'codex-model-main', reasoningEffort: 'low' },
         },
       });
     });
 
     assert.throws(() => {
-      validateProviderSettings('google', {
+      validateProviderSettings('gemini', {
         minLevel: 'level1',
         maxLevel: 'level3',
         defaultLevel: 'level2',
@@ -62,12 +63,12 @@ describe('Provider settings', function () {
     }, /reasoningEffort overrides are only supported/);
   });
 
-  it('applies legacy maxModel to anthropic levels', function () {
+  it('applies legacy maxModel to claude levels', function () {
     process.env.ZEROSHOT_SETTINGS_FILE = settingsFile;
     fs.writeFileSync(settingsFile, JSON.stringify({ maxModel: 'haiku' }, null, 2), 'utf8');
 
     const settings = loadSettings();
-    assert.strictEqual(settings.providerSettings.anthropic.maxLevel, 'level1');
-    assert.strictEqual(settings.providerSettings.anthropic.defaultLevel, 'level1');
+    assert.strictEqual(settings.providerSettings.claude.maxLevel, 'level1');
+    assert.strictEqual(settings.providerSettings.claude.defaultLevel, 'level1');
   });
 });

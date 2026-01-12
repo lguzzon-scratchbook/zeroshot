@@ -12,7 +12,7 @@ describe('Provider chunk parsing', () => {
           delta: { type: 'text_delta', text: 'Hi' },
         },
       });
-    const events = parseProviderChunk('anthropic', `${line}\n`);
+    const events = parseProviderChunk('claude', `${line}\n`);
 
     assert.strictEqual(events.length, 1);
     assert.strictEqual(events[0].type, 'text');

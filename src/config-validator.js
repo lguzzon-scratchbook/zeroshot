@@ -12,6 +12,7 @@
  */
 
 const { loadSettings } = require('../lib/settings');
+const { VALID_PROVIDERS, normalizeProviderName } = require('../lib/provider-names');
 const { getProvider } = require('./providers');
 const { CAPABILITIES } = require('./providers/capabilities');
 
@@ -1443,13 +1444,13 @@ function validateConfigSemantics(config) {
 }
 
 function resolveProviderName(agent, config, settings) {
-  return (
+  const resolved =
     config.forceProvider ||
     agent.provider ||
     config.defaultProvider ||
     settings.defaultProvider ||
-    'anthropic'
-  );
+    'claude';
+  return normalizeProviderName(resolved) || 'claude';
 }
 
 function validateProviderLevel(provider, requestedLevel, minLevel, maxLevel) {
@@ -1506,10 +1507,12 @@ function validateProviderSettings(provider, providerSettings) {
       throw new Error(`Unknown level "${level}" in overrides for provider "${provider}"`);
     }
     if (override?.model && (typeof override.model !== 'string' || !override.model.trim())) {
-      throw new Error(`Invalid model override (must be non-empty string) for provider "${provider}"`);
+      throw new Error(
+        `Invalid model override (must be non-empty string) for provider "${provider}"`
+      );
     }
-    if (override?.reasoningEffort && provider !== 'openai') {
-      throw new Error(`reasoningEffort overrides are only supported for OpenAI (Codex)`);
+    if (override?.reasoningEffort && provider !== 'codex') {
+      throw new Error(`reasoningEffort overrides are only supported for Codex`);
     }
     if (
       override?.reasoningEffort &&
@@ -1526,7 +1529,7 @@ function validateProviderFeatures(config, settings) {
   const errors = [];
   const warnings = [];
 
-  const providersToValidate = ['anthropic', 'openai', 'google'];
+  const providersToValidate = VALID_PROVIDERS;
 
   for (const provider of providersToValidate) {
     try {
@@ -1546,7 +1549,7 @@ function validateProviderFeatures(config, settings) {
     }
 
     const provider = resolveProviderName(agent, config, settings);
-    if (!['anthropic', 'openai', 'google'].includes(provider)) {
+    if (!VALID_PROVIDERS.includes(provider)) {
       errors.push(`Agent "${agent.id}" references unknown provider "${provider}"`);
       continue;
     }
@@ -1616,7 +1619,7 @@ function validateProviderFeatures(config, settings) {
       }
     }
 
-    if (agent.reasoningEffort && provider !== 'openai') {
+    if (agent.reasoningEffort && provider !== 'codex') {
       warnings.push(`Agent "${agent.id}" sets reasoningEffort but ${provider} does not support it`);
     } else if (
       agent.reasoningEffort &&

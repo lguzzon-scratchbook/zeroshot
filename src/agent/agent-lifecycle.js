@@ -303,7 +303,7 @@ async function executeTask(agent, triggeringMessage) {
       agent._publishLifecycle('TASK_STARTED', {
         iteration: agent.iteration,
         model: agent._selectModel(),
-        provider: agent._resolveProvider ? agent._resolveProvider() : 'anthropic',
+        provider: agent._resolveProvider ? agent._resolveProvider() : 'claude',
         modelSpec,
         triggeredBy: triggeringMessage.topic,
         triggerFrom: triggeringMessage.sender,

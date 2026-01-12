@@ -1,5 +1,5 @@
 /**
- * OpenAI/Codex Output Parser Tests
+ * Codex Output Parser Tests
  *
  * Tests for parsing Codex CLI NDJSON output format.
  * Covers: item.completed, agent_message, turn.started, etc.
@@ -8,7 +8,7 @@
 const assert = require('assert');
 const { parseChunk, parseEvent, parseItem } = require('../src/providers/openai/output-parser');
 
-describe('OpenAI/Codex output parser', () => {
+describe('Codex output parser', () => {
   describe('parseItem', () => {
     it('handles Claude-style assistant messages', () => {
       const item = {

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseChunk } = require('../../src/providers/openai/output-parser');
 
-describe('OpenAI provider parser', () => {
+describe('Codex provider parser', () => {
   it('parses assistant text output', () => {
     const fixture = fs.readFileSync(
       path.join(__dirname, '..', 'fixtures', 'codex', 'text.jsonl'),

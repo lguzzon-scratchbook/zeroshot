@@ -258,7 +258,7 @@ describe('maxModel Ceiling Enforcement', function () {
         mockSpawnFn: () => {},
       });
 
-      // Default provider level is level2 (sonnet for anthropic)
+      // Default provider level is level2 (sonnet for claude)
       assert.strictEqual(agent._selectModel(), 'sonnet');
     });
 

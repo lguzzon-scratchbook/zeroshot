@@ -45,6 +45,7 @@ const {
   coerceValue,
   DEFAULT_SETTINGS,
 } = require('../lib/settings');
+const { normalizeProviderName } = require('../lib/provider-names');
 const { getProvider, parseProviderChunk } = require('../src/providers');
 const { MOUNT_PRESETS, resolveEnvs } = require('../lib/docker-config');
 const { requirePreflight } = require('../src/preflight');
@@ -472,10 +473,7 @@ program
     'Full automation: worktree isolation + PR + auto-merge (use --docker for Docker)'
   )
   .option('--workers <n>', 'Max sub-agents for worker to spawn in parallel', parseInt)
-  .option(
-    '--provider <provider>',
-    'Override all agents to use a provider (anthropic, openai, google)'
-  )
+  .option('--provider <provider>', 'Override all agents to use a provider (claude, codex, gemini)')
   .option('--model <model>', 'Override all agent models (provider-specific model id)')
   .option('-d, --detach', 'Run in background (default: attach to first agent)')
   .option('--mount <spec...>', 'Add Docker mount (host:container[:ro]). Repeatable.')
@@ -543,8 +541,9 @@ Input formats:
       // Validate all dependencies BEFORE starting anything
       // This gives users clear, actionable error messages upfront
       const settings = loadSettings();
-      const providerOverride =
-        options.provider || process.env.ZEROSHOT_PROVIDER || settings.defaultProvider;
+      const providerOverride = normalizeProviderName(
+        options.provider || process.env.ZEROSHOT_PROVIDER || settings.defaultProvider
+      );
       const preflightOptions = {
         requireGh: !!input.issue, // gh CLI required when fetching GitHub issues
         requireDocker: options.docker, // Docker required for --docker mode
@@ -646,8 +645,9 @@ Input formats:
       config = orchestrator.loadConfig(configPath);
 
       if (!config.defaultProvider) {
-        config.defaultProvider = settings.defaultProvider || 'anthropic';
+        config.defaultProvider = settings.defaultProvider || 'claude';
       }
+      config.defaultProvider = normalizeProviderName(config.defaultProvider) || 'claude';
 
       if (providerOverride) {
         const provider = getProvider(providerOverride);
@@ -688,8 +688,9 @@ Input formats:
       // Apply model override to all agents (CLI > env)
       const modelOverride = options.model || process.env.ZEROSHOT_MODEL;
       if (modelOverride) {
-        const providerName =
-          providerOverride || config.defaultProvider || settings.defaultProvider || 'anthropic';
+        const providerName = normalizeProviderName(
+          providerOverride || config.defaultProvider || settings.defaultProvider || 'claude'
+        );
         const provider = getProvider(providerName);
         const catalog = provider.getModelCatalog();
 
@@ -701,7 +702,7 @@ Input formats:
           );
         }
 
-        if (providerName === 'anthropic' && ['opus', 'sonnet', 'haiku'].includes(modelOverride)) {
+        if (providerName === 'claude' && ['opus', 'sonnet', 'haiku'].includes(modelOverride)) {
           const { validateModelAgainstMax } = require('../lib/settings');
           try {
             validateModelAgainstMax(modelOverride, settings.maxModel);
@@ -935,12 +936,12 @@ taskCmd
   .command('run <prompt>')
   .description('Run a single-agent background task')
   .option('-C, --cwd <path>', 'Working directory for task')
-  .option('--provider <provider>', 'Provider to use (anthropic, openai, google)')
+  .option('--provider <provider>', 'Provider to use (claude, codex, gemini)')
   .option('--model <model>', 'Model id override for the provider')
   .option('--model-level <level>', 'Model level override (level1, level2, level3)')
   .option('--reasoning-effort <effort>', 'Reasoning effort (low, medium, high, xhigh)')
-  .option('-r, --resume <sessionId>', 'Resume a specific Claude session (anthropic only)')
-  .option('-c, --continue', 'Continue the most recent Claude session (anthropic only)')
+  .option('-r, --resume <sessionId>', 'Resume a specific Claude session (claude only)')
+  .option('-c, --continue', 'Continue the most recent Claude session (claude only)')
   .option(
     '-o, --output-format <format>',
     'Output format: stream-json (default), text, json',
@@ -953,8 +954,9 @@ taskCmd
       // === PREFLIGHT CHECKS ===
       // Provider CLI must be installed for task execution
       const settings = loadSettings();
-      const providerOverride =
-        options.provider || process.env.ZEROSHOT_PROVIDER || settings.defaultProvider;
+      const providerOverride = normalizeProviderName(
+        options.provider || process.env.ZEROSHOT_PROVIDER || settings.defaultProvider
+      );
       requirePreflight({
         requireGh: false, // gh not needed for plain tasks
         requireDocker: false, // Docker not needed for plain tasks
@@ -3095,7 +3097,7 @@ providersCmd.action(async () => {
 
 providersCmd
   .command('set-default <provider>')
-  .description('Set default provider (anthropic, openai, google)')
+  .description('Set default provider (claude, codex, gemini)')
   .action(async (provider) => {
     await setDefaultCommand([provider]);
   });
@@ -4029,7 +4031,9 @@ function renderMessagesToTerminal(clusterId, messages) {
       const content = msg.content?.data?.line || msg.content?.data?.chunk || msg.content?.text;
       if (!content || !content.trim()) continue;
 
-      const provider = msg.content?.data?.provider || msg.sender_provider || 'anthropic';
+      const provider = normalizeProviderName(
+        msg.content?.data?.provider || msg.sender_provider || 'claude'
+      );
       const events = parseProviderChunk(provider, content);
       for (const event of events) {
         switch (event.type) {
@@ -4424,7 +4428,9 @@ function printMessage(msg, showClusterId = false, watchMode = false, isActive = 
     if (!content || !content.trim()) return;
 
     // Parse streaming JSON events using the parser
-    const provider = msg.content?.data?.provider || msg.sender_provider || 'anthropic';
+    const provider = normalizeProviderName(
+      msg.content?.data?.provider || msg.sender_provider || 'claude'
+    );
     const events = parseProviderChunk(provider, content);
 
     for (const event of events) {

@@ -40,7 +40,7 @@ describe('Conductor Duplicate Spawning Prevention', function () {
       JSON.stringify(
         {
           firstRunComplete: true,
-          defaultProvider: 'anthropic',
+          defaultProvider: 'claude',
           defaultConfig: 'conductor-bootstrap',
           autoCheckUpdates: false, // Disable update prompts in tests
         },

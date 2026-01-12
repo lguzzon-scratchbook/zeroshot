@@ -14,7 +14,7 @@ const warned = new Set();
 
 class GoogleProvider extends BaseProvider {
   constructor() {
-    super({ name: 'google', displayName: 'Gemini', cliCommand: 'gemini' });
+    super({ name: 'gemini', displayName: 'Gemini', cliCommand: 'gemini' });
     this._cliFeatures = null;
     this._unknownEventCounts = new Map();
     this._parserState = { lastToolId: null };
@@ -65,7 +65,7 @@ class GoogleProvider extends BaseProvider {
 
     if (options.autoApprove && cliFeatures.supportsAutoApprove === false) {
       this._warnOnce(
-        'google-auto-approve',
+        'gemini-auto-approve',
         'Gemini CLI does not support --yolo; continuing without auto-approve.'
       );
     }
@@ -109,7 +109,7 @@ class GoogleProvider extends BaseProvider {
     const current = this._unknownEventCounts.get(type) || 0;
     if (current >= 5) return;
     this._unknownEventCounts.set(type, current + 1);
-    console.debug(`[google] Unknown event type: ${type}`);
+    console.debug(`[gemini] Unknown event type: ${type}`);
   }
 }
 

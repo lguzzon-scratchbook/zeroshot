@@ -9,6 +9,7 @@ const { spawn, exec, execSync } = require('child_process');
 const fs = require('fs');
 const TaskRunner = require('./task-runner');
 const { loadSettings } = require('../lib/settings');
+const { normalizeProviderName } = require('../lib/provider-names');
 const { getProvider } = require('./providers');
 
 class ClaudeTaskRunner extends TaskRunner {
@@ -59,7 +60,7 @@ class ClaudeTaskRunner extends TaskRunner {
     } = options;
 
     const settings = loadSettings();
-    const providerName = provider || settings.defaultProvider || 'anthropic';
+    const providerName = normalizeProviderName(provider || settings.defaultProvider || 'claude');
     const providerModule = getProvider(providerName);
     const providerSettings = settings.providerSettings?.[providerName] || {};
     const levelOverrides = providerSettings.levelOverrides || {};
@@ -119,7 +120,7 @@ class ClaudeTaskRunner extends TaskRunner {
     const spawnEnv = {
       ...process.env,
     };
-    if (providerName === 'anthropic' && resolvedModelSpec?.model) {
+    if (providerName === 'claude' && resolvedModelSpec?.model) {
       spawnEnv.ANTHROPIC_MODEL = resolvedModelSpec.model;
     }
 
@@ -408,7 +409,7 @@ class ClaudeTaskRunner extends TaskRunner {
   _runIsolated(context, options) {
     const {
       agentId = 'unknown',
-      provider = 'anthropic',
+      provider = 'claude',
       modelSpec = null,
       outputFormat = 'stream-json',
       jsonSchema = null,
@@ -464,7 +465,7 @@ class ClaudeTaskRunner extends TaskRunner {
 
       const proc = manager.spawnInContainer(clusterId, command, {
         env:
-          provider === 'anthropic' && modelSpec?.model
+          provider === 'claude' && modelSpec?.model
             ? { ANTHROPIC_MODEL: modelSpec.model, ZEROSHOT_BLOCK_ASK_USER: '1' }
             : {},
       });

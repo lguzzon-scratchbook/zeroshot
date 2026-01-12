@@ -62,7 +62,7 @@ describe('Model Selection', () => {
         mockSpawnFn: () => {},
       });
 
-      // When no model specified, defaults to provider level2 (sonnet for anthropic)
+      // When no model specified, defaults to provider level2 (sonnet for claude)
       assert.strictEqual(agent._selectModel(), 'sonnet');
     });
   });

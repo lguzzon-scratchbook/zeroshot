@@ -131,7 +131,7 @@ describe('Output Reformatter', function () {
           reformatOutput({
             rawOutput: 'Some text',
             schema: { type: 'object', properties: { x: { type: 'number' } } },
-            providerName: 'anthropic',
+            providerName: 'claude',
           }),
         /SDK not implemented/
       );
@@ -143,9 +143,9 @@ describe('Output Reformatter', function () {
           reformatOutput({
             rawOutput: 'Some text',
             schema: { type: 'object' },
-            providerName: 'openai',
+            providerName: 'codex',
           }),
-        /provider "openai"/
+        /provider "codex"/
       );
     });
 
@@ -155,7 +155,7 @@ describe('Output Reformatter', function () {
           reformatOutput({
             rawOutput: 'This is the raw output text',
             schema: { type: 'object' },
-            providerName: 'google',
+            providerName: 'gemini',
           }),
         /This is the raw output text/
       );

@@ -5,11 +5,11 @@ authentication. Use each CLI's login flow or API key setup.
 
 ## Supported Providers
 
-| Provider  | CLI         | Install                                    |
-| --------- | ----------- | ------------------------------------------ |
-| Anthropic | Claude Code | `npm install -g @anthropic-ai/claude-code` |
-| OpenAI    | Codex       | `npm install -g @openai/codex`             |
-| Google    | Gemini      | `npm install -g @google/gemini-cli`        |
+| Provider | CLI         | Install                                    |
+| -------- | ----------- | ------------------------------------------ |
+| Claude   | Claude Code | `npm install -g @anthropic-ai/claude-code` |
+| Codex    | Codex       | `npm install -g @openai/codex`             |
+| Gemini   | Gemini      | `npm install -g @google/gemini-cli`        |
 
 ## Selecting a Provider
 
@@ -17,7 +17,7 @@ authentication. Use each CLI's login flow or API key setup.
 - Set default: `zeroshot providers set-default <provider>`
 - Configure levels: `zeroshot providers setup <provider>`
 - Override per run: `zeroshot run ... --provider <provider>`
-- Env override: `ZEROSHOT_PROVIDER=openai`
+- Env override: `ZEROSHOT_PROVIDER=codex`
 
 ## Model Levels
 
@@ -32,13 +32,13 @@ Set levels per provider in settings:
 ```json
 {
   "providerSettings": {
-    "openai": {
+    "codex": {
       "minLevel": "level1",
       "maxLevel": "level3",
       "defaultLevel": "level2",
       "levelOverrides": {
-        "level1": { "model": "openai-model-main", "reasoningEffort": "low" },
-        "level3": { "model": "openai-model-main", "reasoningEffort": "xhigh" }
+        "level1": { "model": "codex-model-main", "reasoningEffort": "low" },
+        "level3": { "model": "codex-model-main", "reasoningEffort": "xhigh" }
       }
     }
   }
@@ -47,12 +47,12 @@ Set levels per provider in settings:
 
 Notes:
 
-- `reasoningEffort` applies to OpenAI Codex only.
+- `reasoningEffort` applies to Codex only.
 - `model` is still supported as a provider-specific escape hatch.
 
 ## Docker Isolation and Credentials
 
-Zeroshot does not inject credentials for non-Anthropic CLIs. When using
+Zeroshot does not inject credentials for non-Claude CLIs. When using
 `--docker`, mount your provider config directories explicitly.
 
 Examples:

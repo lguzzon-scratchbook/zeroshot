@@ -5,9 +5,9 @@
  * Each provider has different output formats - this module normalizes them.
  *
  * Provider formats:
- * - Anthropic: {"type":"result","result":{...}} or {"type":"result","structured_output":{...}}
- * - OpenAI: Raw text in item.created events, turn.completed has NO result field
- * - Google: Raw text in message events, result event may have NO result field
+ * - Claude: {"type":"result","result":{...}} or {"type":"result","structured_output":{...}}
+ * - Codex: Raw text in item.created events, turn.completed has NO result field
+ * - Gemini: Raw text in message events, result event may have NO result field
  *
  * Extraction priority (most specific → least specific):
  * 1. Result wrapper with content (type:result + result/structured_output field)
@@ -35,7 +35,7 @@ function stripTimestamp(line) {
 
 /**
  * Strategy 1: Extract from result wrapper
- * Handles Anthropic CLI format: {"type":"result","result":{...}}
+ * Handles Claude CLI format: {"type":"result","result":{...}}
  *
  * @param {string} output - Raw output
  * @returns {object|null} Extracted JSON or null
@@ -80,7 +80,7 @@ function extractFromResultWrapper(output) {
 
 /**
  * Strategy 2: Extract from accumulated text events
- * Handles non-Anthropic providers where JSON is in text content
+ * Handles non-Claude providers where JSON is in text content
  *
  * @param {string} output - Raw output
  * @param {string} providerName - Provider name for parser selection
@@ -157,10 +157,10 @@ function extractDirectJson(text) {
  * Main extraction function - tries all strategies in priority order
  *
  * @param {string} output - Raw output from AI provider CLI
- * @param {string} providerName - Provider name ('anthropic', 'openai', 'google')
+ * @param {string} providerName - Provider name ('claude', 'codex', 'gemini')
  * @returns {object|null} Extracted JSON object or null if extraction failed
  */
-function extractJsonFromOutput(output, providerName = 'anthropic') {
+function extractJsonFromOutput(output, providerName = 'claude') {
   if (!output || typeof output !== 'string') return null;
 
   const trimmedOutput = output.trim();
@@ -171,11 +171,11 @@ function extractJsonFromOutput(output, providerName = 'anthropic') {
     return null;
   }
 
-  // Strategy 1: Result wrapper (Anthropic format)
+  // Strategy 1: Result wrapper (Claude format)
   const fromWrapper = extractFromResultWrapper(trimmedOutput);
   if (fromWrapper) return fromWrapper;
 
-  // Strategy 2: Text events (non-Anthropic providers)
+  // Strategy 2: Text events (non-Claude providers)
   const fromText = extractFromTextEvents(trimmedOutput, providerName);
   if (fromText) return fromText;
 

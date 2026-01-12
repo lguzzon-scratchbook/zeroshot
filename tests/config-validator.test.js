@@ -185,7 +185,7 @@ describe('Config Validator', function () {
           },
         ],
       });
-      assert.ok(result.warnings.some((w) => w.includes('model "gpt4"') && w.includes('anthropic')));
+      assert.ok(result.warnings.some((w) => w.includes('model "gpt4"') && w.includes('claude')));
     });
   });
 

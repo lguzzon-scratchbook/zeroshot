@@ -1,15 +1,17 @@
 const AnthropicProvider = require('./anthropic');
 const OpenAIProvider = require('./openai');
 const GoogleProvider = require('./google');
+const { normalizeProviderName } = require('../../lib/provider-names');
 
 const PROVIDERS = {
-  anthropic: AnthropicProvider,
-  openai: OpenAIProvider,
-  google: GoogleProvider,
+  claude: AnthropicProvider,
+  codex: OpenAIProvider,
+  gemini: GoogleProvider,
 };
 
 function getProvider(name) {
-  const Provider = PROVIDERS[name];
+  const normalized = normalizeProviderName(name || '');
+  const Provider = PROVIDERS[normalized];
   if (!Provider) {
     throw new Error(`Unknown provider: ${name}. Valid: ${Object.keys(PROVIDERS).join(', ')}`);
   }
@@ -60,7 +62,7 @@ function parseChunkWithProvider(provider, chunk) {
 }
 
 function parseProviderChunk(providerName, chunk) {
-  const provider = getProvider(providerName || 'anthropic');
+  const provider = getProvider(providerName || 'claude');
   return parseChunkWithProvider(provider, chunk);
 }
 

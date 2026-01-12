@@ -9,6 +9,10 @@ import { spawn } from 'child_process';
 import { appendFileSync } from 'fs';
 import { updateTask } from './store.js';
 import { detectStreamingModeError, recoverStructuredOutput } from './claude-recovery.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { normalizeProviderName } = require('../lib/provider-names');
 
 const [, , taskId, cwd, logFile, argsJson, configJson] = process.argv;
 const args = JSON.parse(argsJson);
@@ -18,8 +22,8 @@ function log(msg) {
   appendFileSync(logFile, msg);
 }
 
-const providerName = config.provider || 'anthropic';
-const enableRecovery = providerName === 'anthropic';
+const providerName = normalizeProviderName(config.provider || 'claude');
+const enableRecovery = providerName === 'claude';
 
 const env = { ...process.env, ...(config.env || {}) };
 const command = config.command || 'claude';

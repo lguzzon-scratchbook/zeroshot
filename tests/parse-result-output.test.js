@@ -5,11 +5,11 @@
  * structured JSON from different AI provider CLI outputs.
  *
  * Provider output formats:
- * - Anthropic (Claude CLI): Wraps result in {"type":"result","result":{...}}
- * - OpenAI (Codex CLI): Raw text/JSON output, separate turn.completed event
- * - Google (Gemini CLI): Raw text/JSON output, separate result event
+ * - Claude (Claude CLI): Wraps result in {"type":"result","result":{...}}
+ * - Codex (Codex CLI): Raw text/JSON output, separate turn.completed event
+ * - Gemini (Gemini CLI): Raw text/JSON output, separate result event
  *
- * Bug fixed: Non-Anthropic providers emit type:result for completion status
+ * Bug fixed: Non-Claude providers emit type:result for completion status
  * WITHOUT the actual result content. The JSON must be extracted from
  * accumulated text events instead.
  */
@@ -21,7 +21,7 @@ const { parseResultOutput } = require('../src/agent/agent-task-executor');
 
 // Helper to create a minimal agent mock for testing
 function createMockAgent(options = {}) {
-  const providerName = options.provider || 'anthropic';
+  const providerName = options.provider || 'claude';
   return {
     id: options.id || 'test-agent',
     role: options.role || 'conductor',
@@ -44,10 +44,10 @@ function createMockAgent(options = {}) {
 
 describe('parseResultOutput', function () {
   // ============================================================================
-  // ANTHROPIC (Claude CLI) OUTPUT FORMAT TESTS
+  // CLAUDE (Claude CLI) OUTPUT FORMAT TESTS
   // ============================================================================
-  describe('Anthropic Provider', function () {
-    const agent = createMockAgent({ provider: 'anthropic' });
+  describe('Claude Provider', function () {
+    const agent = createMockAgent({ provider: 'claude' });
 
     it('should parse result wrapped in type:result with result field', async function () {
       const output = `{"type":"result","subtype":"success","result":{"complexity":"SIMPLE","taskType":"INQUIRY","reasoning":"Single question"},"is_error":false}`;
@@ -105,10 +105,10 @@ Done.`;
   });
 
   // ============================================================================
-  // OPENAI (Codex CLI) OUTPUT FORMAT TESTS
+  // CODEX (Codex CLI) OUTPUT FORMAT TESTS
   // ============================================================================
-  describe('OpenAI Provider', function () {
-    const agent = createMockAgent({ provider: 'openai' });
+  describe('Codex Provider', function () {
+    const agent = createMockAgent({ provider: 'codex' });
 
     it('should parse raw JSON text output (not wrapped)', async function () {
       // Codex outputs raw JSON when model returns structured data
@@ -160,10 +160,10 @@ Done.`;
   });
 
   // ============================================================================
-  // GOOGLE (Gemini CLI) OUTPUT FORMAT TESTS
+  // GEMINI (Gemini CLI) OUTPUT FORMAT TESTS
   // ============================================================================
-  describe('Google Provider', function () {
-    const agent = createMockAgent({ provider: 'google' });
+  describe('Gemini Provider', function () {
+    const agent = createMockAgent({ provider: 'gemini' });
 
     it('should parse raw JSON text output', async function () {
       const output = `{"complexity":"SIMPLE","taskType":"DEBUG","reasoning":"Fix typo"}`;
@@ -201,7 +201,7 @@ Done.`;
   // EDGE CASES AND ERROR HANDLING
   // ============================================================================
   describe('Edge Cases', function () {
-    const agent = createMockAgent({ provider: 'anthropic' });
+    const agent = createMockAgent({ provider: 'claude' });
 
     it('should throw on empty output', async function () {
       await assert.rejects(() => parseResultOutput(agent, ''), /Task execution failed/);
@@ -262,7 +262,7 @@ Done.`;
   describe('Schema Validation', function () {
     it('should validate against jsonSchema when configured', async function () {
       const agent = createMockAgent({
-        provider: 'anthropic',
+        provider: 'claude',
         jsonSchema: {
           type: 'object',
           properties: {
@@ -282,7 +282,7 @@ Done.`;
 
     it('should throw for validator role with invalid schema', async function () {
       const agent = createMockAgent({
-        provider: 'anthropic',
+        provider: 'claude',
         role: 'validator',
         jsonSchema: {
           type: 'object',
@@ -303,7 +303,7 @@ Done.`;
       const warnings = [];
       const agent = {
         ...createMockAgent({
-          provider: 'anthropic',
+          provider: 'claude',
           role: 'conductor', // Not validator - should warn, not throw
         }),
         _publish: (msg) => {
@@ -328,11 +328,11 @@ Done.`;
   // REGRESSION TESTS
   // ============================================================================
   describe('Regression Tests', function () {
-    it('REGRESSION: OpenAI turn.completed should not hijack result parsing', async function () {
+    it('REGRESSION: Codex turn.completed should not hijack result parsing', async function () {
       // This was the original bug: turn.completed creates type:result
       // but without result field, causing parseResultOutput to use it
       // instead of the actual text content
-      const agent = createMockAgent({ provider: 'openai' });
+      const agent = createMockAgent({ provider: 'codex' });
 
       // Simulate real Codex output where JSON is in text, turn.completed has no result
       const output = `[1768207505878]{"type":"thread.started"}
@@ -347,8 +347,8 @@ Done.`;
       assert.ok(result.reasoning.includes('1+1'));
     });
 
-    it('REGRESSION: Google result event without result field', async function () {
-      const agent = createMockAgent({ provider: 'google' });
+    it('REGRESSION: Gemini result event without result field', async function () {
+      const agent = createMockAgent({ provider: 'gemini' });
 
       const output = `{"type":"init"}
 {"type":"message","role":"assistant","content":"{\\"complexity\\":\\"STANDARD\\",\\"taskType\\":\\"TASK\\",\\"reasoning\\":\\"Implement feature\\"}"}
@@ -362,7 +362,7 @@ Done.`;
 
     it('REGRESSION: Should handle result as string containing markdown JSON', async function () {
       // Claude CLI sometimes returns result as string with markdown
-      const agent = createMockAgent({ provider: 'anthropic' });
+      const agent = createMockAgent({ provider: 'claude' });
 
       const output = `{"type":"result","subtype":"success","result":"\`\`\`json\\n{\\"complexity\\":\\"TRIVIAL\\",\\"taskType\\":\\"INQUIRY\\",\\"reasoning\\":\\"Quick lookup\\"}\\n\`\`\`"}`;
 
@@ -373,7 +373,7 @@ Done.`;
     });
 
     it('REGRESSION: Multi-line JSON should be reassembled', async function () {
-      const agent = createMockAgent({ provider: 'openai' });
+      const agent = createMockAgent({ provider: 'codex' });
 
       // JSON spread across multiple lines (pretty-printed by model)
       const output = `{

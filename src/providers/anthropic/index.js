@@ -15,7 +15,7 @@ const warned = new Set();
 
 class AnthropicProvider extends BaseProvider {
   constructor() {
-    super({ name: 'anthropic', displayName: 'Claude', cliCommand: 'claude' });
+    super({ name: 'claude', displayName: 'Claude', cliCommand: 'claude' });
     this._cliFeatures = null;
   }
 
@@ -74,7 +74,7 @@ class AnthropicProvider extends BaseProvider {
 
     if (options.jsonSchema && options.outputFormat !== 'json' && !options.strictSchema) {
       this._warnOnce(
-        'anthropic-jsonschema-stream',
+        'claude-jsonschema-stream',
         'jsonSchema requested with stream output; schema enforcement will be post-validated.'
       );
     }
@@ -85,14 +85,14 @@ class AnthropicProvider extends BaseProvider {
       cliFeatures.supportsJsonSchema === false
     ) {
       this._warnOnce(
-        'anthropic-jsonschema-flag',
+        'claude-jsonschema-flag',
         'Claude CLI does not support --json-schema; skipping schema flag.'
       );
     }
 
     if (options.autoApprove && cliFeatures.supportsAutoApprove === false) {
       this._warnOnce(
-        'anthropic-auto-approve',
+        'claude-auto-approve',
         'Claude CLI does not support --dangerously-skip-permissions; continuing without auto-approve.'
       );
     }

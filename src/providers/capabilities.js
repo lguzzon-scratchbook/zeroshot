@@ -1,5 +1,7 @@
+const { normalizeProviderName } = require('../../lib/provider-names');
+
 const CAPABILITIES = {
-  anthropic: {
+  claude: {
     dockerIsolation: true,
     worktreeIsolation: true,
     mcpServers: true,
@@ -8,7 +10,7 @@ const CAPABILITIES = {
     thinkingMode: true,
     reasoningEffort: false,
   },
-  openai: {
+  codex: {
     dockerIsolation: true,
     worktreeIsolation: true,
     mcpServers: true,
@@ -17,7 +19,7 @@ const CAPABILITIES = {
     thinkingMode: true,
     reasoningEffort: true,
   },
-  google: {
+  gemini: {
     dockerIsolation: true,
     worktreeIsolation: true,
     mcpServers: true,
@@ -29,15 +31,16 @@ const CAPABILITIES = {
 };
 
 function checkCapability(provider, capability) {
-  const caps = CAPABILITIES[provider];
+  const caps = CAPABILITIES[normalizeProviderName(provider)];
   if (!caps) return false;
   return caps[capability] === true;
 }
 
 function warnIfExperimental(provider, capability) {
-  const caps = CAPABILITIES[provider];
+  const normalized = normalizeProviderName(provider);
+  const caps = CAPABILITIES[normalized];
   if (caps?.[capability] === 'experimental') {
-    console.warn(`⚠️ ${capability} is experimental for ${provider} and may not work reliably`);
+    console.warn(`⚠️ ${capability} is experimental for ${normalized} and may not work reliably`);
   }
 }
 

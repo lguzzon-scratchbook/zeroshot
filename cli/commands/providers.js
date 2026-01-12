@@ -1,5 +1,6 @@
 const readline = require('readline');
 const { loadSettings, saveSettings } = require('../../lib/settings');
+const { VALID_PROVIDERS, normalizeProviderName } = require('../../lib/provider-names');
 const { detectProviders, getProvider } = require('../../src/providers');
 
 function question(rl, prompt) {
@@ -42,9 +43,9 @@ async function providersCommand() {
 }
 
 function setDefaultCommand(args) {
-  const provider = args[0];
-  if (!['anthropic', 'openai', 'google'].includes(provider)) {
-    console.error(`Invalid provider: ${provider}`);
+  const provider = normalizeProviderName(args[0]);
+  if (!VALID_PROVIDERS.includes(provider)) {
+    console.error(`Invalid provider: ${args[0]}`);
     process.exit(1);
   }
 
@@ -56,9 +57,9 @@ function setDefaultCommand(args) {
 }
 
 async function setupCommand(args) {
-  const provider = args[0];
+  const provider = normalizeProviderName(args[0]);
   if (!provider) {
-    console.error('Provider is required (anthropic, openai, google)');
+    console.error('Provider is required (claude, codex, gemini)');
     process.exit(1);
   }
 
@@ -114,7 +115,7 @@ async function setupCommand(args) {
       for (const level of levelKeys) {
         const modelChoice = await question(rl, `Model for ${level} (${catalog.join(', ')}): `);
         if (modelChoice) levelOverrides[level] = { model: modelChoice };
-        if (provider === 'openai') {
+        if (provider === 'codex') {
           const reasoning = await question(rl, `Reasoning for ${level} (low|medium|high|xhigh): `);
           if (reasoning) {
             levelOverrides[level] = {

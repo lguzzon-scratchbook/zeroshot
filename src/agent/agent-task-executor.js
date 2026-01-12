@@ -153,7 +153,7 @@ let dangerousGitHookInstalled = false;
  * @param {string} output - Full NDJSON output from Claude CLI
  * @returns {Object|null} Token usage data or null if not found
  */
-function extractTokenUsage(output, providerName = 'anthropic') {
+function extractTokenUsage(output, providerName = 'claude') {
   if (!output) return null;
 
   const provider = getProvider(providerName);
@@ -338,7 +338,7 @@ function ensureDangerousGitHook() {
  * @returns {Promise<Object>} Result object { success, output, error }
  */
 async function spawnClaudeTask(agent, context) {
-  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
+  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'claude';
   const modelSpec = agent._resolveModelSpec
     ? agent._resolveModelSpec()
     : { model: agent._selectModel() };
@@ -423,11 +423,11 @@ async function spawnClaudeTask(agent, context) {
     return spawnClaudeTaskIsolated(agent, context);
   }
 
-  // NON-ISOLATION MODE: For Anthropic, use user's existing Claude config
+  // NON-ISOLATION MODE: For Claude, use user's existing Claude config
   // AskUserQuestion blocking handled via:
   // 1. Prompt injection (see agent-context-builder)
   // 2. PreToolUse hook (defense-in-depth) - activated by ZEROSHOT_BLOCK_ASK_USER env var
-  if (providerName === 'anthropic') {
+  if (providerName === 'claude') {
     ensureAskUserQuestionHook();
 
     // WORKTREE MODE: Install git safety hook (blocks dangerous git commands)
@@ -441,7 +441,7 @@ async function spawnClaudeTask(agent, context) {
     ...process.env,
   };
 
-  if (providerName === 'anthropic') {
+  if (providerName === 'claude') {
     if (modelSpec?.model) {
       spawnEnv.ANTHROPIC_MODEL = modelSpec.model;
     }
@@ -564,7 +564,7 @@ function followClaudeTaskLogs(agent, taskId) {
   const fsModule = require('fs');
   const { execSync, exec } = require('child_process');
   const ctPath = getClaudeTasksPath();
-  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
+  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'claude';
 
   return new Promise((resolve, _reject) => {
     let output = '';
@@ -893,7 +893,7 @@ function getClaudeTasksPath() {
  */
 async function spawnClaudeTaskIsolated(agent, context) {
   const { manager, clusterId } = agent.isolation;
-  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
+  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'claude';
   const modelSpec = agent._resolveModelSpec
     ? agent._resolveModelSpec()
     : { model: agent._selectModel() };
@@ -966,7 +966,7 @@ async function spawnClaudeTaskIsolated(agent, context) {
   const taskId = await new Promise((resolve, reject) => {
     const proc = manager.spawnInContainer(clusterId, command, {
       env:
-        providerName === 'anthropic'
+        providerName === 'claude'
           ? {
               ANTHROPIC_MODEL: modelSpec?.model,
               // Activate AskUserQuestion blocking hook (see hooks/block-ask-user-question.py)
@@ -1065,7 +1065,7 @@ function followClaudeTaskLogsIsolated(agent, taskId) {
 
   const manager = isolation.manager;
   const clusterId = isolation.clusterId;
-  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
+  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'claude';
 
   return new Promise((resolve, reject) => {
     let taskExited = false;
@@ -1292,7 +1292,7 @@ async function parseResultOutput(agent, output) {
     throw new Error('Task execution failed - no output');
   }
 
-  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
+  const providerName = agent._resolveProvider ? agent._resolveProvider() : 'claude';
   const { extractJsonFromOutput } = require('./output-extraction');
 
   // Use clean extraction pipeline

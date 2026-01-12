@@ -302,7 +302,7 @@ describe('Preflight Validation', function () {
         requireGh: false,
         requireDocker: false,
         quiet: true,
-        provider: 'anthropic',
+        provider: 'claude',
       });
 
       process.env.PATH = originalPath;
@@ -319,7 +319,7 @@ describe('Preflight Validation', function () {
         requireGh: false,
         requireDocker: false,
         quiet: true,
-        provider: 'openai',
+        provider: 'codex',
       });
 
       process.env.PATH = originalPath;
@@ -336,7 +336,7 @@ describe('Preflight Validation', function () {
         requireGh: false,
         requireDocker: false,
         quiet: true,
-        provider: 'google',
+        provider: 'gemini',
       });
 
       process.env.PATH = originalPath;
@@ -362,7 +362,7 @@ describe('Preflight Validation', function () {
         requireGh: false,
         requireDocker: false,
         quiet: true,
-        provider: 'anthropic',
+        provider: 'claude',
       });
 
       process.env.CLAUDE_CONFIG_DIR = originalDir;
@@ -375,7 +375,7 @@ describe('Preflight Validation', function () {
         requireGh: false,
         requireDocker: false,
         quiet: true,
-        provider: 'openai',
+        provider: 'codex',
       });
 
       expect(result).to.have.property('warnings');
@@ -394,7 +394,7 @@ describe('Preflight Validation', function () {
         env: {
           ...process.env,
           PATH: '/nonexistent',
-          ZEROSHOT_PROVIDER: 'openai',
+          ZEROSHOT_PROVIDER: 'codex',
         },
       });
 
