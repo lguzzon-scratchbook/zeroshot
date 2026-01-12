@@ -14,6 +14,44 @@
 const MAX_CONTEXT_CHARS = 500000;
 
 /**
+ * Generate an example object from a JSON schema
+ * Used to show models a concrete example of expected output
+ *
+ * @param {object} schema - JSON schema
+ * @returns {object|null} Example object or null if generation fails
+ */
+function generateExampleFromSchema(schema) {
+  if (!schema || schema.type !== 'object' || !schema.properties) {
+    return null;
+  }
+
+  const example = {};
+
+  for (const [key, propSchema] of Object.entries(schema.properties)) {
+    if (propSchema.enum && propSchema.enum.length > 0) {
+      // Use first enum value as example
+      example[key] = propSchema.enum[0];
+    } else if (propSchema.type === 'string') {
+      example[key] = propSchema.description || `${key} value`;
+    } else if (propSchema.type === 'boolean') {
+      example[key] = true;
+    } else if (propSchema.type === 'number' || propSchema.type === 'integer') {
+      example[key] = 0;
+    } else if (propSchema.type === 'array') {
+      if (propSchema.items?.type === 'string') {
+        example[key] = [];
+      } else {
+        example[key] = [];
+      }
+    } else if (propSchema.type === 'object') {
+      example[key] = generateExampleFromSchema(propSchema) || {};
+    }
+  }
+
+  return example;
+}
+
+/**
  * Build execution context for an agent
  * @param {object} params - Context building parameters
  * @param {string} params.id - Agent ID
@@ -103,7 +141,7 @@ function buildContext({
     );
   }
 
-  // Output format schema (if configured)
+  // Output format schema (if configured via legacy format)
   if (config.prompt?.outputFormat) {
     context += `## Output Schema (REQUIRED)\n\n`;
     context += `\`\`\`json\n${JSON.stringify(config.prompt.outputFormat.example, null, 2)}\n\`\`\`\n\n`;
@@ -114,6 +152,29 @@ function buildContext({
       }
     }
     context += '\n';
+  }
+
+  // AUTO-INJECT JSON OUTPUT INSTRUCTIONS when jsonSchema is defined
+  // This ensures ALL agents with structured output schemas get explicit "output ONLY JSON" instructions
+  // Critical for less capable models (Codex, Gemini) that output prose without explicit instructions
+  if (config.jsonSchema && config.outputFormat === 'json') {
+    context += `## 🔴 OUTPUT FORMAT - JSON ONLY\n\n`;
+    context += `Your response must be ONLY valid JSON. No other text before or after.\n`;
+    context += `Start with { and end with }. Nothing else.\n\n`;
+    context += `Required schema:\n`;
+    context += `\`\`\`json\n${JSON.stringify(config.jsonSchema, null, 2)}\n\`\`\`\n\n`;
+
+    // Generate example from schema
+    const example = generateExampleFromSchema(config.jsonSchema);
+    if (example) {
+      context += `Example output:\n`;
+      context += `\`\`\`json\n${JSON.stringify(example, null, 2)}\n\`\`\`\n\n`;
+    }
+
+    context += `CRITICAL RULES:\n`;
+    context += `- Output ONLY the JSON object - no explanation, no thinking, no preamble\n`;
+    context += `- Use EXACTLY the enum values specified (case-sensitive)\n`;
+    context += `- Include ALL required fields\n\n`;
   }
 
   // Add sources

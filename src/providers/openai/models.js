@@ -1,11 +1,11 @@
-const MODEL_CATALOG = {
-  'openai-model-main': { rank: 1 },
-};
+// Codex CLI - use null to let CLI pick its default model
+// Levels vary by reasoning effort only
+const MODEL_CATALOG = {};
 
 const LEVEL_MAPPING = {
-  level1: { rank: 1, model: 'openai-model-main', reasoningEffort: 'low' },
-  level2: { rank: 2, model: 'openai-model-main', reasoningEffort: 'medium' },
-  level3: { rank: 3, model: 'openai-model-main', reasoningEffort: 'xhigh' },
+  level1: { rank: 1, model: null, reasoningEffort: 'low' },
+  level2: { rank: 2, model: null, reasoningEffort: 'medium' },
+  level3: { rank: 3, model: null, reasoningEffort: 'high' },
 };
 
 const DEFAULT_LEVEL = 'level2';

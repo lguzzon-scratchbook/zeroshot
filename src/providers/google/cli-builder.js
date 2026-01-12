@@ -1,7 +1,28 @@
 function buildCommand(context, options = {}) {
-  const { modelSpec, outputFormat, cwd, autoApprove, cliFeatures = {} } = options;
+  const { modelSpec, outputFormat, jsonSchema, cwd, autoApprove, cliFeatures = {} } = options;
 
-  const args = ['-p', context];
+  // Augment context with schema if provided (Gemini CLI doesn't support native schema enforcement)
+  let finalContext = context;
+  if (jsonSchema) {
+    // CRITICAL: Inject schema into prompt since Gemini CLI has no --output-schema flag
+    // Without this, model outputs free-form text instead of JSON
+    const schemaStr =
+      typeof jsonSchema === 'string' ? jsonSchema : JSON.stringify(jsonSchema, null, 2);
+    finalContext =
+      context +
+      `\n\n## OUTPUT FORMAT (CRITICAL - REQUIRED)
+
+You MUST respond with a JSON object that exactly matches this schema. NO markdown, NO explanation, NO code blocks. ONLY the raw JSON object.
+
+Schema:
+\`\`\`json
+${schemaStr}
+\`\`\`
+
+Your response must be ONLY valid JSON. Start with { and end with }. Nothing else.`;
+  }
+
+  const args = ['-p', finalContext];
 
   if (
     (outputFormat === 'stream-json' || outputFormat === 'json') &&

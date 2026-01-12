@@ -1,13 +1,14 @@
+// Gemini CLI model names
+// Model is optional - Gemini defaults to best available
 const MODEL_CATALOG = {
-  'google-tier-1': { rank: 1 },
-  'google-tier-2': { rank: 2 },
-  'google-tier-3': { rank: 3 },
+  'gemini-2.5-pro': { rank: 3 },
+  'gemini-2.0-flash': { rank: 1 },
 };
 
 const LEVEL_MAPPING = {
-  level1: { rank: 1, model: 'google-tier-1' },
-  level2: { rank: 2, model: 'google-tier-2' },
-  level3: { rank: 3, model: 'google-tier-3' },
+  level1: { rank: 1, model: null },
+  level2: { rank: 2, model: null },
+  level3: { rank: 3, model: null },
 };
 
 const DEFAULT_LEVEL = 'level2';

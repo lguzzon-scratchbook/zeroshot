@@ -1,11 +1,77 @@
 /**
  * BaseProvider - Abstract provider interface
+ *
+ * All providers support two execution paths:
+ * 1. SDK (fast) - Direct API calls using provider's SDK (requires API key)
+ * 2. CLI (slower) - Spawns provider's CLI tool (uses OAuth/login auth)
+ *
+ * Use callSimple() for simple prompts - it tries SDK first, falls back to CLI.
  */
 class BaseProvider {
   constructor(options = {}) {
     this.name = options.name || 'base';
     this.displayName = options.displayName || 'Base';
     this.cliCommand = options.cliCommand || null;
+  }
+
+  // ============================================================================
+  // SDK SUPPORT (Future Extension Point)
+  // ============================================================================
+  //
+  // SDK support is NOT IMPLEMENTED. These methods exist for future extension.
+  // Currently, all providers use CLI (claude, codex, gemini) for execution.
+  //
+  // To add SDK support for a provider:
+  // 1. Override getSDKEnvVar() to return the API key env var
+  // 2. Override callSDK() to implement the actual API call
+  // 3. The callSimple() method will then work automatically
+  //
+  // ============================================================================
+
+  /**
+   * Get the environment variable name for the API key
+   * @returns {string} Environment variable name (e.g., 'ANTHROPIC_API_KEY')
+   */
+  getSDKEnvVar() {
+    throw new Error(`${this.name}: SDK not implemented. Use CLI instead.`);
+  }
+
+  /**
+   * Check if SDK is configured (API key is set)
+   * @returns {boolean} True if API key is available
+   */
+  isSDKConfigured() {
+    try {
+      const envVar = this.getSDKEnvVar();
+      return !!process.env[envVar];
+    } catch {
+      // getSDKEnvVar() throws if not implemented
+      return false;
+    }
+  }
+
+  /**
+   * Make a simple API call via SDK (fast path)
+   * NOT IMPLEMENTED - exists for future extension.
+   *
+   * @param {string} _prompt - The prompt to send
+   * @param {Object} _options - Call options
+   * @returns {Promise<{success: boolean, text: string, usage?: Object, error?: string}>}
+   */
+  async callSDK(_prompt, _options) {
+    throw new Error(`${this.name}: SDK not implemented. Use CLI instead.`);
+  }
+
+  /**
+   * Make a simple API call via SDK
+   * NOT IMPLEMENTED - exists for future extension.
+   *
+   * @param {string} _prompt - The prompt to send
+   * @param {Object} _options - Call options
+   * @returns {Promise<{success: boolean, text: string, usage?: Object, error?: string}>}
+   */
+  async callSimple(_prompt, _options = {}) {
+    throw new Error(`${this.name}: SDK not implemented. Use CLI instead.`);
   }
 
   isAvailable() {

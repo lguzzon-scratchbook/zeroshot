@@ -19,6 +19,9 @@ class AnthropicProvider extends BaseProvider {
     this._cliFeatures = null;
   }
 
+  // SDK not implemented - uses CLI only
+  // See BaseProvider for SDK extension point documentation
+
   isAvailable() {
     const { command } = getClaudeCommand();
     return commandExists(command);

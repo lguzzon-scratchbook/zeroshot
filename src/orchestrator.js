@@ -23,6 +23,7 @@ const { generateName } = require('./name-generator');
 const configValidator = require('./config-validator');
 const TemplateResolver = require('./template-resolver');
 const { loadSettings } = require('../lib/settings');
+const crypto = require('crypto');
 
 function applyModelOverride(agentConfig, modelOverride) {
   if (!modelOverride) return;
@@ -563,6 +564,7 @@ class Orchestrator {
       worktree: options.worktree || false,
       autoPr: options.autoPr || process.env.ZEROSHOT_PR === '1',
       modelOverride: options.modelOverride, // Model override for all agents
+      clusterId: options.clusterId, // Explicit ID from CLI/daemon parent
     });
   }
 
@@ -571,8 +573,15 @@ class Orchestrator {
    * @private
    */
   async _startInternal(config, input = {}, options = {}) {
-    // Use pre-generated ID from parent process, or generate new one
-    const clusterId = process.env.ZEROSHOT_CLUSTER_ID || generateName('cluster');
+    // Generate a unique cluster ID for this process call.
+    // IMPORTANT: Do NOT implicitly reuse ZEROSHOT_CLUSTER_ID, because:
+    // - test harnesses may set it globally (breaking multi-start tests)
+    // - callers may start multiple clusters in one process
+    // Use it only when explicitly passed (CLI/daemon parent) via options.clusterId.
+    const clusterId = this._generateUniqueClusterId(
+      options.clusterId || null,
+      config?.dbPath || null
+    );
 
     // Create ledger and message bus with persistent storage
     const dbPath = config.dbPath || path.join(this.storageDir, `${clusterId}.db`);
@@ -819,8 +828,8 @@ class Orchestrator {
       //
       // ORDER:
       //   1. Register subscriptions (lines below)
-      //   2. Start agents (line ~XXX)
-      //   3. Publish ISSUE_OPENED (line ~XXX)
+      //   2. Start agents
+      //   3. Publish ISSUE_OPENED
       //
       // DO NOT move subscriptions after agent.start() - this will reintroduce
       // the race condition fixed in issue #31.
@@ -1055,6 +1064,42 @@ class Orchestrator {
       console.error(`Cluster ${clusterId} failed to start:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Generate a unique cluster ID, safe for concurrent starts in-process.
+   * If an explicit ID is provided, uses it as a base and suffixes on collision.
+   * @private
+   */
+  _generateUniqueClusterId(explicitId, explicitDbPath) {
+    const baseId = explicitId || generateName('cluster');
+    const baseDbPath = explicitDbPath || path.join(this.storageDir, `${baseId}.db`);
+
+    // Fast path: base is unused.
+    if (!this.clusters.has(baseId) && !fs.existsSync(baseDbPath)) {
+      return baseId;
+    }
+
+    // Collision: suffix with random bytes to avoid race conditions under concurrency.
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const suffix = crypto.randomBytes(3).toString('hex');
+      const candidateId = `${baseId}-${suffix}`;
+      const candidateDbPath = explicitDbPath || path.join(this.storageDir, `${candidateId}.db`);
+      if (!this.clusters.has(candidateId) && !fs.existsSync(candidateDbPath)) {
+        return candidateId;
+      }
+    }
+
+    // Last resort: new generated name (should never happen).
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const candidateId = generateName('cluster');
+      const candidateDbPath = explicitDbPath || path.join(this.storageDir, `${candidateId}.db`);
+      if (!this.clusters.has(candidateId) && !fs.existsSync(candidateDbPath)) {
+        return candidateId;
+      }
+    }
+
+    throw new Error('Failed to generate unique cluster ID after many attempts');
   }
 
   /**

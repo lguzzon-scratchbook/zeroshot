@@ -10,6 +10,7 @@
 
 const { spawn, execSync } = require('child_process');
 const { Worker } = require('worker_threads');
+const crypto = require('crypto');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -1214,7 +1215,8 @@ class IsolationManager {
     }
 
     // Create branch name from cluster ID (e.g., cluster-cosmic-meteor-87 -> zeroshot/cosmic-meteor-87)
-    const branchName = `zeroshot/${clusterId.replace(/^cluster-/, '')}`;
+    const baseBranchName = `zeroshot/${clusterId.replace(/^cluster-/, '')}`;
+    let branchName = baseBranchName;
 
     // Worktree path in tmp
     const worktreePath = path.join(os.tmpdir(), 'zeroshot-worktrees', clusterId);
@@ -1225,34 +1227,67 @@ class IsolationManager {
       fs.mkdirSync(parentDir, { recursive: true });
     }
 
-    // Remove existing worktree if it exists (cleanup from previous run)
+    // Best-effort cleanup of stale worktree metadata and directory.
+    // IMPORTANT: If a previous run deleted the directory without deregistering the worktree,
+    // git may keep the branch "checked out" and block deletion/reuse.
     try {
-      execSync(`git worktree remove --force "${worktreePath}" 2>/dev/null`, {
+      execSync(`git worktree remove --force ${escapeShell(worktreePath)}`, {
         cwd: repoRoot,
         encoding: 'utf8',
         stdio: 'pipe',
       });
     } catch {
-      // Ignore - worktree doesn't exist
+      // ignore
     }
-
-    // Delete the branch if it exists (from previous run)
     try {
-      execSync(`git branch -D "${branchName}" 2>/dev/null`, {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        stdio: 'pipe',
-      });
+      execSync('git worktree prune', { cwd: repoRoot, encoding: 'utf8', stdio: 'pipe' });
     } catch {
-      // Ignore - branch doesn't exist
+      // ignore
+    }
+    try {
+      fs.rmSync(worktreePath, { recursive: true, force: true });
+    } catch {
+      // ignore
     }
 
-    // Create worktree with new branch based on HEAD
-    execSync(`git worktree add -b "${branchName}" "${worktreePath}" HEAD`, {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      stdio: 'pipe',
-    });
+    // Create worktree with new branch based on HEAD (retry on branch collision/in-use)
+    for (let attempt = 0; attempt < 10; attempt++) {
+      // Best-effort delete if branch exists and is not in use by another worktree.
+      try {
+        execSync(`git branch -D ${escapeShell(branchName)}`, {
+          cwd: repoRoot,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch {
+        // ignore
+      }
+
+      try {
+        execSync(`git worktree add -b ${escapeShell(branchName)} ${escapeShell(worktreePath)} HEAD`, {
+          cwd: repoRoot,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        break;
+      } catch (err) {
+        const stderr = (err && (err.stderr || err.message) ? String(err.stderr || err.message) : '')
+          .toLowerCase();
+        const isBranchCollision =
+          stderr.includes('already exists') || stderr.includes('cannot delete branch') || stderr.includes('checked out');
+
+        if (attempt < 9 && isBranchCollision) {
+          branchName = `${baseBranchName}-${crypto.randomBytes(3).toString('hex')}`;
+          try {
+            execSync('git worktree prune', { cwd: repoRoot, encoding: 'utf8', stdio: 'pipe' });
+          } catch {
+            // ignore
+          }
+          continue;
+        }
+        throw err;
+      }
+    }
 
     return {
       path: worktreePath,
@@ -1268,19 +1303,38 @@ class IsolationManager {
    * @param {boolean} [options.deleteBranch=false] - Also delete the branch
    */
   removeWorktree(worktreeInfo, _options = {}) {
+    // Remove the worktree (prefer git so metadata is cleaned up).
     try {
-      // Remove the worktree
-      execSync(`git worktree remove --force "${worktreeInfo.path}" 2>/dev/null`, {
+      execSync(`git worktree remove --force ${escapeShell(worktreeInfo.path)}`, {
         cwd: worktreeInfo.repoRoot,
         encoding: 'utf8',
         stdio: 'pipe',
       });
     } catch {
-      // Fallback: manually remove directory if worktree command fails
+      // If git worktree metadata is stale, prune and retry once.
       try {
-        fs.rmSync(worktreeInfo.path, { recursive: true, force: true });
+        execSync('git worktree prune', { cwd: worktreeInfo.repoRoot, encoding: 'utf8', stdio: 'pipe' });
       } catch {
-        // Ignore
+        // ignore
+      }
+      try {
+        execSync(`git worktree remove --force ${escapeShell(worktreeInfo.path)}`, {
+          cwd: worktreeInfo.repoRoot,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch {
+        // Last resort: delete directory, then prune stale worktree entries.
+        try {
+          fs.rmSync(worktreeInfo.path, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+        try {
+          execSync('git worktree prune', { cwd: worktreeInfo.repoRoot, encoding: 'utf8', stdio: 'pipe' });
+        } catch {
+          // ignore
+        }
       }
     }
 

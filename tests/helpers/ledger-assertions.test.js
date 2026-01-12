@@ -386,21 +386,14 @@ describe('LedgerAssertions', function () {
     it('should return messages in timestamp order', function () {
       const baseTime = Date.now();
 
-      ledger.append({
-        cluster_id: clusterId,
-        topic: 'TEST',
-        sender: 'agent-a',
-        receiver: 'broadcast',
-        timestamp: baseTime + 1000,
-      });
-
-      ledger.append({
-        cluster_id: clusterId,
-        topic: 'TEST',
-        sender: 'agent-b',
-        receiver: 'broadcast',
-        timestamp: baseTime,
-      });
+      // Bypass Ledger.append monotonic timestamp enforcement so we can verify ordering
+      // against out-of-order timestamps that may exist in persisted ledgers.
+      const insert = ledger.db.prepare(
+        'INSERT INTO messages (id, timestamp, topic, sender, receiver, content_text, content_data, metadata, cluster_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      insert.run('msg_a', baseTime + 1000, 'TEST', 'agent-a', 'broadcast', null, null, null, clusterId);
+      insert.run('msg_b', baseTime, 'TEST', 'agent-b', 'broadcast', null, null, null, clusterId);
+      ledger.cache.clear();
 
       const result = assertions.getMessages('TEST');
       assert.strictEqual(result.length, 2);

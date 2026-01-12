@@ -2756,4 +2756,104 @@ describe('Config Validator', function () {
       assert.strictEqual(result.valid, true);
     });
   });
+
+  // === PROVIDER-AGNOSTIC MODEL VALIDATION ===
+  // Prevents hardcoding provider-specific model names (haiku/sonnet/opus/gpt-4/gemini)
+  // which break when switching providers. Use modelLevel: level1/level2/level3 instead.
+
+  describe('Provider-agnostic model validation', function () {
+    it('should ERROR when agent uses direct model field', function () {
+      const result = validateConfig({
+        agents: [
+          {
+            id: 'worker',
+            role: 'impl',
+            model: 'haiku', // FORBIDDEN - must use modelLevel
+            triggers: [{ topic: 'START' }],
+          },
+        ],
+      });
+      assert.ok(
+        result.errors.some((e) => e.includes("uses 'model:")),
+        'Expected error about direct model usage. Errors: ' + JSON.stringify(result.errors)
+      );
+    });
+
+    it('should ERROR for ANY direct model value, not just known names', function () {
+      const result = validateConfig({
+        agents: [
+          {
+            id: 'worker',
+            role: 'impl',
+            model: 'some-random-model-name',
+            triggers: [{ topic: 'START' }],
+          },
+        ],
+      });
+      assert.ok(
+        result.errors.some((e) => e.includes("uses 'model:")),
+        'Expected error about direct model usage. Errors: ' + JSON.stringify(result.errors)
+      );
+    });
+
+    it('should ALLOW modelLevel field', function () {
+      const result = validateConfig({
+        agents: [
+          {
+            id: 'worker',
+            role: 'impl',
+            modelLevel: 'level1', // ALLOWED
+            triggers: [{ topic: 'START' }],
+            hooks: {
+              onComplete: {
+                action: 'publish_message',
+                config: { topic: 'DONE', content: {} },
+              },
+            },
+          },
+          {
+            id: 'orch',
+            role: 'orchestrator',
+            triggers: [{ topic: 'DONE', action: 'stop_cluster' }],
+          },
+        ],
+      });
+      assert.ok(
+        !result.errors.some((e) => e.includes('model')),
+        'Should not error on modelLevel. Errors: ' + JSON.stringify(result.errors)
+      );
+    });
+
+    it('should ALLOW modelRules with model inside rules (iteration-based selection)', function () {
+      const result = validateConfig({
+        agents: [
+          {
+            id: 'worker',
+            role: 'impl',
+            triggers: [{ topic: 'START' }],
+            modelRules: [
+              { iterations: '1-3', model: 'sonnet' },
+              { iterations: 'all', model: 'haiku' },
+            ],
+            hooks: {
+              onComplete: {
+                action: 'publish_message',
+                config: { topic: 'DONE', content: {} },
+              },
+            },
+          },
+          {
+            id: 'orch',
+            role: 'orchestrator',
+            triggers: [{ topic: 'DONE', action: 'stop_cluster' }],
+          },
+        ],
+      });
+      // modelRules is allowed because it's a different system (iteration-based)
+      assert.ok(
+        !result.errors.some((e) => e.includes("uses 'model:")),
+        'modelRules should be allowed. Errors: ' + JSON.stringify(result.errors)
+      );
+    });
+  });
 });

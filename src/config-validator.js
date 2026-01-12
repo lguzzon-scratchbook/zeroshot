@@ -478,6 +478,15 @@ function validateAgents(config) {
           'Defaults to 30, but consider setting explicitly.'
       );
     }
+
+    // FORBIDDEN: Direct model specification in configs
+    // Use modelLevel (level1/level2/level3) for provider-agnostic model selection
+    if (agent.model) {
+      errors.push(
+        `Agent '${agent.id}' uses 'model: "${agent.model}"'. ` +
+          `Use 'modelLevel: "level1|level2|level3"' instead for provider-agnostic model selection.`
+      );
+    }
   }
 
   // Check for role references in logic scripts
@@ -1483,7 +1492,6 @@ function validateProviderLevel(provider, requestedLevel, minLevel, maxLevel) {
 
 function validateProviderSettings(provider, providerSettings) {
   const providerModule = getProvider(provider);
-  const catalog = providerModule.getModelCatalog();
   const levels = providerModule.getLevelMapping();
   const settings = providerSettings || {};
 
@@ -1497,8 +1505,8 @@ function validateProviderSettings(provider, providerSettings) {
     if (!levels[level]) {
       throw new Error(`Unknown level "${level}" in overrides for provider "${provider}"`);
     }
-    if (override?.model && !catalog[override.model]) {
-      throw new Error(`Invalid model override "${override.model}" for provider "${provider}"`);
+    if (override?.model && (typeof override.model !== 'string' || !override.model.trim())) {
+      throw new Error(`Invalid model override (must be non-empty string) for provider "${provider}"`);
     }
     if (override?.reasoningEffort && provider !== 'openai') {
       throw new Error(`reasoningEffort overrides are only supported for OpenAI (Codex)`);

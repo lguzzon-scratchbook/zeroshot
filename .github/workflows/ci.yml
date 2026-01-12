@@ -44,8 +44,12 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Test with coverage
+      - name: Unit tests with coverage (fast)
         run: npm run test:coverage
+        timeout-minutes: 3
+
+      - name: Integration tests (slow, Docker)
+        run: npm run test:slow
         timeout-minutes: 15
 
       - name: Upload coverage to Codecov

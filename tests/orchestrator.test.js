@@ -55,7 +55,7 @@ function createSimpleConfig() {
       {
         id: 'worker',
         role: 'implementation',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'text',
         triggers: [
           {
@@ -84,7 +84,7 @@ function _createMultiAgentConfig() {
       {
         id: 'agent1',
         role: 'implementation',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'text',
         triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
         prompt: 'Agent 1',
@@ -92,7 +92,7 @@ function _createMultiAgentConfig() {
       {
         id: 'agent2',
         role: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'text',
         triggers: [{ topic: 'IMPLEMENTATION_READY', action: 'execute_task' }],
         prompt: 'Agent 2',
@@ -108,7 +108,7 @@ function _createValidatorConfig() {
       {
         id: 'worker',
         role: 'implementation',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'text',
         triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
         prompt: 'Worker',
@@ -122,7 +122,7 @@ function _createValidatorConfig() {
       {
         id: 'validator',
         role: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
         jsonSchema: {
           type: 'object',

@@ -1,11 +1,11 @@
 {
   "name": "Two-Tier Conductor (Complexity × TaskType)",
-  "description": "Cost-optimized conductor: Haiku junior for 2D classification (complexity + taskType), Sonnet senior for UNCERTAIN tasks. Routes to appropriate cluster config via helpers.getConfig().",
+  "description": "Cost-optimized conductor: level1 junior for 2D classification (complexity + taskType), level2 senior for UNCERTAIN tasks. Routes to appropriate cluster config via helpers.getConfig().",
   "agents": [
     {
       "id": "junior-conductor",
       "role": "conductor",
-      "model": "haiku",
+      "modelLevel": "level1",
       "useDirectApi": true,
       "outputFormat": "json",
       "jsonSchema": {
@@ -29,7 +29,7 @@
         "required": ["complexity", "taskType", "reasoning"]
       },
       "prompt": {
-        "system": "You are the JUNIOR CONDUCTOR (Haiku) - fast, cost-efficient task classification.\n\n## Your Job\nClassify tasks on TWO dimensions: COMPLEXITY and TASK TYPE.\n\n## COMPLEXITY (how hard/risky)\n\n**TRIVIAL** - One command, one file, mechanical\n**SIMPLE** - One concern, straightforward\n**STANDARD** - Multi-file, needs planning\n**CRITICAL** - High risk (auth, payments, security, production)\n**UNCERTAIN** - Escalate to senior conductor\n\n## TASK TYPE (what kind of action)\n\n**INQUIRY** - Questions, exploration, understanding\n- \"How does X work?\", \"What files handle Y?\", \"Explain Z\"\n- NO changes made, just gathering information\n\n**TASK** - Implement something new\n- \"Add feature X\", \"Create Y\", \"Implement Z\"\n- Building new functionality\n\n**DEBUG** - Fix something broken\n- \"Why is X failing?\", \"Fix bug in Y\", \"Debug Z\"\n- Investigating and fixing existing issues\n\n## Output Format\n\n```json\n{\n  \"complexity\": \"TRIVIAL|SIMPLE|STANDARD|CRITICAL|UNCERTAIN\",\n  \"taskType\": \"INQUIRY|TASK|DEBUG\",\n  \"reasoning\": \"Brief explanation\"\n}\n```\n\n## Examples\n\n\"How does auth work?\" → SIMPLE, INQUIRY\n\"Add rate limiting\" → STANDARD, TASK\n\"Fix null pointer bug\" → SIMPLE, DEBUG\n\"Why is the API slow?\" → STANDARD, DEBUG\n\"Deploy to AWS\" → CRITICAL, TASK\n\"terraform plan\" → SIMPLE, TASK\n\"What files handle routing?\" → TRIVIAL, INQUIRY\n\n## Critical Rules\n\n1. ALWAYS output both dimensions\n2. INQUIRY = read-only, TASK = create new, DEBUG = fix broken\n3. complexity=UNCERTAIN only when truly ambiguous\n\nTask: {{ISSUE_OPENED.content.text}}"
+        "system": "You are the JUNIOR CONDUCTOR - fast task classification.\n\n## Your Job\nClassify the task on TWO dimensions.\n\n## COMPLEXITY (pick ONE)\n- TRIVIAL - One command, one file, mechanical\n- SIMPLE - One concern, straightforward\n- STANDARD - Multi-file, needs planning\n- CRITICAL - High risk (auth, payments, security, production)\n- UNCERTAIN - Escalate to senior conductor\n\n## TASK TYPE (pick ONE)\n- INQUIRY - Questions, exploration, read-only\n- TASK - Implement something new\n- DEBUG - Fix something broken\n\n## Examples\n\nTask: \"How does auth work?\"\n```json\n{\"complexity\": \"SIMPLE\", \"taskType\": \"INQUIRY\", \"reasoning\": \"Asking about existing code\"}\n```\n\nTask: \"Add rate limiting\"\n```json\n{\"complexity\": \"STANDARD\", \"taskType\": \"TASK\", \"reasoning\": \"New feature, multiple files\"}\n```\n\nTask: \"Fix null pointer bug\"\n```json\n{\"complexity\": \"SIMPLE\", \"taskType\": \"DEBUG\", \"reasoning\": \"Fixing broken code\"}\n```\n\n## Critical Rules\n1. Output ONLY valid JSON - no other text\n2. complexity must be EXACTLY one of: TRIVIAL, SIMPLE, STANDARD, CRITICAL, UNCERTAIN\n3. taskType must be EXACTLY one of: INQUIRY, TASK, DEBUG\n\nTask: {{ISSUE_OPENED.content.text}}"
       },
       "contextStrategy": {
         "sources": [{ "topic": "ISSUE_OPENED", "limit": 1 }],
@@ -59,7 +59,7 @@
     {
       "id": "senior-conductor",
       "role": "conductor",
-      "model": "sonnet",
+      "modelLevel": "level2",
       "useDirectApi": true,
       "outputFormat": "json",
       "jsonSchema": {
@@ -83,7 +83,7 @@
         "required": ["complexity", "taskType", "reasoning"]
       },
       "prompt": {
-        "system": "You are the SENIOR CONDUCTOR - expert task analyzer for ambiguous tasks.\n\nThe junior conductor was uncertain. Analyze deeply and make a definitive classification.\n\n## COMPLEXITY\n\n**TRIVIAL** - One command/file, mechanical, no risk\n**SIMPLE** - One concern, straightforward\n**STANDARD** - Multi-file, needs planning\n**CRITICAL** - High risk (auth/payments/security/production)\n\n## TASK TYPE\n\n**INQUIRY** - Questions, exploration (read-only)\n**TASK** - Implement something new (create)\n**DEBUG** - Fix something broken (investigate + fix)\n\n## Decision Rules\n\n1. YOU MUST DECIDE - no UNCERTAIN output\n2. When in doubt about complexity, go ONE LEVEL HIGHER\n3. INQUIRY vs TASK vs DEBUG based on intent, not keywords\n4. Consider: Is user asking a question? Building new? Fixing broken?\n\nJunior classified as UNCERTAIN. Original task and reasoning follow."
+        "system": "You are the SENIOR CONDUCTOR - expert task analyzer.\n\nThe junior conductor was uncertain. Make a definitive classification.\n\n## COMPLEXITY (pick ONE - no UNCERTAIN allowed)\n- TRIVIAL - One command/file, mechanical\n- SIMPLE - One concern, straightforward\n- STANDARD - Multi-file, needs planning\n- CRITICAL - High risk (auth/payments/security/production)\n\n## TASK TYPE (pick ONE)\n- INQUIRY - Questions, exploration (read-only)\n- TASK - Implement something new\n- DEBUG - Fix something broken\n\n## Example Output\n```json\n{\"complexity\": \"STANDARD\", \"taskType\": \"TASK\", \"reasoning\": \"Multiple files involved, new feature\"}\n```\n\n## Rules\n1. Output ONLY valid JSON - no other text\n2. YOU MUST DECIDE - pick exactly one value for each field\n3. When in doubt, go ONE LEVEL HIGHER for complexity\n\nJunior was uncertain. Original task follows."
       },
       "contextStrategy": {
         "sources": [

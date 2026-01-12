@@ -726,6 +726,7 @@ Input formats:
       // CRITICAL: cwd must be passed to orchestrator for agent CWD propagation
       const targetCwd = process.env.ZEROSHOT_CWD || detectGitRepoRoot();
       const startOptions = {
+        clusterId,
         cwd: targetCwd, // Target working directory for agents
         isolation: options.docker || process.env.ZEROSHOT_DOCKER === '1' || settings.defaultDocker,
         isolationImage: options.dockerImage || process.env.ZEROSHOT_DOCKER_IMAGE || undefined,

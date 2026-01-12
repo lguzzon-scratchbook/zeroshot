@@ -106,7 +106,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -131,7 +131,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -159,7 +159,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -187,7 +187,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -210,7 +210,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -222,7 +222,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -244,7 +244,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -262,7 +262,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -287,7 +287,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test context', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -322,7 +322,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('validate code', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -349,7 +349,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('validate code', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -397,7 +397,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
       // Validator should validate against validator schema
       const validatorResult = await mockRunner.run('validate plan', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
       assert.strictEqual(validatorResult.success, true);
     });
@@ -454,7 +454,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -475,7 +475,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -496,7 +496,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       // Error responses should not be validated
@@ -522,7 +522,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -546,7 +546,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);
@@ -599,7 +599,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('run tests', {
         agentId: 'tester',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, true);
@@ -635,7 +635,7 @@ describe('MockTaskRunner - Output Format Validation', function () {
 
       const result = await mockRunner.run('test', {
         agentId: 'agent',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.strictEqual(result.success, false);

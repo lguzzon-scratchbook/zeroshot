@@ -61,7 +61,7 @@ const shouldRun = hasDocker && !isCI && hasImage && hasClaudeCredentials;
         {
           id: 'test-conductor',
           role: 'conductor',
-          model: 'haiku',
+          modelLevel: 'level1',
           outputFormat: 'json',
           jsonSchema: {
             type: 'object',

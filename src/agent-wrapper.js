@@ -490,9 +490,10 @@ class AgentWrapper {
    * Parse agent output to extract structured result data
    * GENERIC - returns whatever structured output the agent provides
    * Works with any agent schema (planner, validator, worker, etc.)
+   * Falls back to reformatting if extraction fails
    * @private
    */
-  _parseResultOutput(output) {
+  async _parseResultOutput(output) {
     return parseResultOutput(this, output);
   }
 

@@ -20,6 +20,9 @@ class GoogleProvider extends BaseProvider {
     this._parserState = { lastToolId: null };
   }
 
+  // SDK not implemented - uses CLI only
+  // See BaseProvider for SDK extension point documentation
+
   isAvailable() {
     return commandExists(this.cliCommand);
   }

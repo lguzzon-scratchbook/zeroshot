@@ -304,14 +304,23 @@ class MockTaskRunner extends TaskRunner {
   }
 
   async run(context, options) {
-    const { agentId, model } = options;
+    const { agentId } = options;
+    const resolvedModel =
+      options.model ||
+      (options.modelLevel === 'level1'
+        ? 'haiku'
+        : options.modelLevel === 'level2'
+          ? 'sonnet'
+          : options.modelLevel === 'level3'
+            ? 'opus'
+            : undefined);
 
     const callCount = this.calls.filter((c) => c.agentId === agentId).length + 1;
 
     const callRecord = {
       agentId,
       context,
-      options,
+      options: { ...options, model: resolvedModel },
       timestamp: Date.now(),
       callNumber: callCount,
       streamEvents: [],
@@ -324,9 +333,9 @@ class MockTaskRunner extends TaskRunner {
     };
 
     // Validate model if expectedModel is set
-    if (behavior.expectedModel && model !== behavior.expectedModel) {
+    if (behavior.expectedModel && resolvedModel !== behavior.expectedModel) {
       throw new Error(
-        `Expected agent "${agentId}" to be called with model "${behavior.expectedModel}", but was called with "${model}"`
+        `Expected agent "${agentId}" to be called with model "${behavior.expectedModel}", but was called with "${resolvedModel}"`
       );
     }
 

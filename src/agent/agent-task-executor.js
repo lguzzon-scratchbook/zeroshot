@@ -16,8 +16,8 @@ const fs = require('fs');
 const os = require('os');
 const { getProvider, parseChunkWithProvider } = require('../providers');
 
-// Direct API caller for fast conductor classification
-const { callDirectApi, shouldUseDirectApi } = require('./direct-api-caller');
+// Schema utilities for normalizing LLM output
+const { normalizeEnumValues } = require('./schema-utils');
 
 /**
  * Validate and sanitize error messages.
@@ -53,21 +53,6 @@ function sanitizeErrorMessage(error) {
   }
 
   return error;
-}
-
-/**
- * Strip timestamp prefix from log lines.
- * Log lines may have format: [epochMs]{json...} or [epochMs]text
- *
- * @param {string} line - Raw log line
- * @returns {string} Line content without timestamp prefix, empty string for invalid input
- */
-function stripTimestampPrefix(line) {
-  if (!line || typeof line !== 'string') return '';
-  const trimmed = line.trim().replace(/\r$/, '');
-  if (!trimmed) return '';
-  const match = trimmed.match(/^\[(\d{13})\](.*)$/);
-  return match ? match[2] : trimmed;
 }
 
 /**
@@ -337,12 +322,6 @@ async function spawnClaudeTask(agent, context) {
     ? agent._resolveModelSpec()
     : { model: agent._selectModel() };
 
-  // FAST PATH: Direct API for conductor classification
-  // Bypasses Claude CLI overhead (~27s → ~1s) for simple classification tasks
-  if (providerName === 'anthropic' && shouldUseDirectApi(agent.config)) {
-    return spawnClaudeTaskDirectApi(agent, context);
-  }
-
   const ctPath = getClaudeTasksPath();
   const cwd = agent.config.cwd || process.cwd();
 
@@ -521,125 +500,6 @@ async function spawnClaudeTask(agent, context) {
 
   // Now follow the logs and stream output
   return followClaudeTaskLogs(agent, taskId);
-}
-
-/**
- * FAST PATH: Execute conductor task via direct Anthropic API
- * Bypasses Claude CLI (~27s overhead) for simple classification tasks
- *
- * @param {Object} agent - Agent instance
- * @param {String} context - Context to pass to Claude
- * @returns {Promise<Object>} Result object { success, output, error, tokenUsage }
- */
-async function spawnClaudeTaskDirectApi(agent, context) {
-  const startTime = Date.now();
-
-  agent._log(`⚡ Agent ${agent.id}: Using direct API (fast path)`);
-  agent._publishLifecycle('DIRECT_API_STARTED', { model: agent._selectModel() });
-
-  // Extract system prompt from agent config
-  // The conductor template has a 'system' field in the prompt object
-  let systemPrompt = '';
-  if (agent.config.prompt?.system) {
-    // Replace template variables in system prompt
-    systemPrompt = agent.config.prompt.system;
-  }
-
-  // The context already has the task content, use it as the user prompt
-  const userPrompt = context;
-
-  try {
-    const result = await callDirectApi({
-      prompt: userPrompt,
-      model: agent._selectModel(),
-      jsonSchema: agent.config.jsonSchema,
-      systemPrompt,
-      maxTokens: 1024,
-    });
-
-    const totalDurationMs = Date.now() - startTime;
-
-    if (result.success) {
-      agent._publishLifecycle('DIRECT_API_COMPLETED', {
-        durationMs: totalDurationMs,
-        durationApiMs: result.durationApiMs,
-        inputTokens: result.usage?.inputTokens,
-        outputTokens: result.usage?.outputTokens,
-      });
-
-      // Format output to match expected structure from Claude CLI
-      const output = JSON.stringify({
-        type: 'result',
-        subtype: 'success',
-        is_error: false,
-        duration_ms: totalDurationMs,
-        duration_api_ms: result.durationApiMs,
-        result: result.result,
-        usage: {
-          input_tokens: result.usage?.inputTokens || 0,
-          output_tokens: result.usage?.outputTokens || 0,
-        },
-      });
-
-      // Broadcast the result as AGENT_OUTPUT for consistency with CLI path
-      agent._publish({
-        topic: 'AGENT_OUTPUT',
-        receiver: 'broadcast',
-        content: {
-          text: output,
-          data: {
-            type: 'json',
-            line: output,
-            agent: agent.id,
-            role: agent.role,
-            iteration: agent.iteration,
-          },
-        },
-      });
-
-      return {
-        success: true,
-        output,
-        result: result.result,
-        tokenUsage: {
-          inputTokens: result.usage?.inputTokens || 0,
-          outputTokens: result.usage?.outputTokens || 0,
-          durationMs: totalDurationMs,
-          durationApiMs: result.durationApiMs,
-        },
-      };
-    } else {
-      agent._publishLifecycle('DIRECT_API_FAILED', {
-        error: result.error,
-        durationMs: totalDurationMs,
-      });
-
-      return {
-        success: false,
-        output: '',
-        error: result.error,
-        tokenUsage: {
-          durationMs: totalDurationMs,
-        },
-      };
-    }
-  } catch (error) {
-    const totalDurationMs = Date.now() - startTime;
-
-    agent._publishLifecycle('DIRECT_API_FAILED', {
-      error: error.message,
-      durationMs: totalDurationMs,
-    });
-
-    return {
-      success: false,
-      output: '',
-      error: error.message,
-      tokenUsage: {
-        durationMs: totalDurationMs,
-      },
-    };
-  }
 }
 
 /**
@@ -1335,8 +1195,8 @@ function followClaudeTaskLogsIsolated(agent, taskId) {
                 ? extractErrorContext({ output: fullOutput, taskId, isNotFound })
                 : null;
 
-              // Parse result from output
-              const parsedResult = agent._parseResultOutput(fullOutput);
+              // Parse result from output (async - may trigger reformatting)
+              const parsedResult = await agent._parseResultOutput(fullOutput);
 
               resolve({
                 success,
@@ -1374,144 +1234,55 @@ function followClaudeTaskLogsIsolated(agent, taskId) {
  * Parse agent output to extract structured result data
  * GENERIC - returns whatever structured output the agent provides
  * Works with any agent schema (planner, validator, worker, etc.)
+ *
+ * Uses clean extraction pipeline from output-extraction.js
+ * Falls back to reformatting if extraction fails and schema is available
+ *
  * @param {Object} agent - Agent instance
  * @param {String} output - Raw output from agent
- * @returns {Object} Parsed result data
+ * @returns {Promise<Object>} Parsed result data
  */
-function parseResultOutput(agent, output) {
+async function parseResultOutput(agent, output) {
   // Empty or error outputs = FAIL
   if (!output || output.includes('Task not found') || output.includes('Process terminated')) {
     throw new Error('Task execution failed - no output');
   }
 
   const providerName = agent._resolveProvider ? agent._resolveProvider() : 'anthropic';
-  const provider = getProvider(providerName);
-  const events = parseChunkWithProvider(provider, output);
-  const textOutput = events
-    .filter((event) => event.type === 'text')
-    .map((event) => event.text)
-    .join('');
-  const fallbackText = textOutput.trim();
+  const { extractJsonFromOutput } = require('./output-extraction');
 
-  let parsed;
-  let trimmedOutput = output.trim();
+  // Use clean extraction pipeline
+  let parsed = extractJsonFromOutput(output, providerName);
 
-  // IMPORTANT: Output is NDJSON (one JSON object per line) from streaming log
-  // Lines may have timestamp prefix: [epochMs]{json...}
-  // Find the line with "type":"result" which contains the actual result
-  const lines = trimmedOutput.split('\n');
-  const resultLine = lines.find((line) => {
+  // If extraction failed but we have a schema, attempt reformatting
+  if (!parsed && agent.config.jsonSchema) {
+    const { reformatOutput } = require('./output-reformatter');
+
     try {
-      const content = stripTimestampPrefix(line);
-      if (!content.startsWith('{')) return false;
-      const obj = JSON.parse(content);
-      return obj.type === 'result';
-    } catch {
-      return false;
-    }
-  });
-
-  // Use the result line if found, otherwise use last non-empty line
-  // CRITICAL: Strip timestamp prefix before assigning to trimmedOutput
-  if (resultLine) {
-    trimmedOutput = stripTimestampPrefix(resultLine);
-  } else if (fallbackText) {
-    trimmedOutput = fallbackText;
-  } else if (lines.length > 1) {
-    // Fallback: use last non-empty line (also strip timestamp)
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const content = stripTimestampPrefix(lines[i]);
-      if (content) {
-        trimmedOutput = content;
-        break;
-      }
-    }
-  }
-
-  // Strategy 1: If agent uses JSON output format, try CLI JSON structure first
-  if (agent.config.outputFormat === 'json' && agent.config.jsonSchema) {
-    try {
-      const claudeOutput = JSON.parse(trimmedOutput);
-
-      // Try structured_output field first (standard CLI format)
-      if (claudeOutput.structured_output && typeof claudeOutput.structured_output === 'object') {
-        parsed = claudeOutput.structured_output;
-      }
-      // Check if it's a direct object (not a primitive)
-      else if (
-        typeof claudeOutput === 'object' &&
-        claudeOutput !== null &&
-        !Array.isArray(claudeOutput)
-      ) {
-        // Check for result wrapper
-        if (claudeOutput.result && typeof claudeOutput.result === 'object') {
-          parsed = claudeOutput.result;
-        }
-        // IMPORTANT: Handle case where result is a string containing markdown-wrapped JSON
-        // Claude CLI with --output-format json returns { result: "```json\n{...}\n```" }
-        else if (claudeOutput.result && typeof claudeOutput.result === 'string') {
-          const resultStr = claudeOutput.result;
-          // Try extracting JSON from markdown code block
-          const jsonMatch = resultStr.match(/```json\s*([\s\S]*?)```/);
-          if (jsonMatch) {
-            try {
-              parsed = JSON.parse(jsonMatch[1].trim());
-            } catch {
-              // Fall through to other strategies
-            }
+      parsed = await reformatOutput({
+        rawOutput: output,
+        schema: agent.config.jsonSchema,
+        providerName,
+        onAttempt: (attempt, lastError) => {
+          if (lastError) {
+            console.warn(`[Agent ${agent.id}] Reformat attempt ${attempt}: ${lastError}`);
+          } else {
+            console.warn(`[Agent ${agent.id}] JSON extraction failed, reformatting (attempt ${attempt})...`);
           }
-          // If no markdown block, try parsing result string directly as JSON
-          if (!parsed) {
-            try {
-              parsed = JSON.parse(resultStr);
-            } catch {
-              // Fall through to other strategies
-            }
-          }
-        }
-        // Use directly if it has meaningful keys (and we haven't found a better parse)
-        if (!parsed) {
-          const keys = Object.keys(claudeOutput);
-          if (keys.length > 0 && keys.some((k) => !['type', 'subtype', 'is_error'].includes(k))) {
-            parsed = claudeOutput;
-          }
-        }
-      }
-    } catch {
-      // JSON parse failed - fall through to markdown extraction
+        },
+      });
+    } catch (reformatError) {
+      // Reformatting failed - fall through to error below
+      console.error(`[Agent ${agent.id}] Reformatting failed: ${reformatError.message}`);
     }
   }
 
-  // Strategy 2: Extract JSON from markdown code block (legacy or fallback)
   if (!parsed) {
-    const jsonMatch = trimmedOutput.match(/```json\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      try {
-        parsed = JSON.parse(jsonMatch[1].trim());
-      } catch (e) {
-        throw new Error(`JSON parse failed in markdown block: ${e.message}`);
-      }
-    }
-  }
-
-  // Strategy 3: Try parsing the whole output as JSON
-  if (!parsed) {
-    try {
-      const directParse = JSON.parse(trimmedOutput);
-      if (typeof directParse === 'object' && directParse !== null) {
-        parsed = directParse;
-      }
-    } catch {
-      // Not valid JSON, fall through to error
-    }
-  }
-
-  // No strategy worked
-  if (!parsed) {
+    const trimmedOutput = output.trim();
     console.error(`\n${'='.repeat(80)}`);
     console.error(`🔴 AGENT OUTPUT MISSING REQUIRED JSON BLOCK`);
     console.error(`${'='.repeat(80)}`);
-    console.error(`Agent: ${agent.id}, Role: ${agent.role}`);
+    console.error(`Agent: ${agent.id}, Role: ${agent.role}, Provider: ${providerName}`);
     console.error(`Output (last 500 chars): ${trimmedOutput.slice(-500)}`);
     console.error(`${'='.repeat(80)}\n`);
     throw new Error(`Agent ${agent.id} output missing required JSON block`);
@@ -1521,6 +1292,10 @@ function parseResultOutput(agent, output) {
   // This preserves schema enforcement even when we run stream-json for live logs.
   // IMPORTANT: For non-validator agents we warn but do not fail the cluster.
   if (agent.config.jsonSchema) {
+    // Normalize enum values BEFORE validation (handles case mismatches, common variations)
+    // This is provider-agnostic - works for Claude CLI, Gemini, Codex, etc.
+    normalizeEnumValues(parsed, agent.config.jsonSchema);
+
     const Ajv = require('ajv');
     const ajv = new Ajv({
       allErrors: true,

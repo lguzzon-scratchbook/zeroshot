@@ -20,7 +20,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('test context', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       mockRunner.assertCalledWithModel('worker', 'sonnet');
@@ -52,7 +52,7 @@ describe('MockTaskRunner Assertion API', () => {
       mockRunner.when('worker').returns('{}');
 
       await mockRunner.run('test 1', { agentId: 'worker', model: 'opus' });
-      await mockRunner.run('test 2', { agentId: 'worker', model: 'sonnet' });
+      await mockRunner.run('test 2', { agentId: 'worker', modelLevel: 'level2' });
 
       mockRunner.assertCalledWithModel('worker', 'sonnet');
     });
@@ -89,7 +89,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('test context', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.throws(
@@ -144,7 +144,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.throws(
@@ -160,7 +160,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('PLAN_READY message from planner', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       mockRunner.assertContextIncludes('worker', 'PLAN_READY message');
@@ -171,7 +171,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('some other context', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.throws(
@@ -185,11 +185,11 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('first context', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
       await mockRunner.run('second context with PLAN_READY', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       mockRunner.assertContextIncludes('worker', 'PLAN_READY');
@@ -202,7 +202,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('clean context without secrets', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       mockRunner.assertContextExcludes('worker', 'API_KEY');
@@ -213,7 +213,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('context with API_KEY=secret', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.throws(
@@ -227,11 +227,11 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('first with SECRET', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
       await mockRunner.run('second with SECRET', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       assert.throws(
@@ -247,13 +247,13 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
         cwd: '/workspace',
       });
 
       mockRunner.assertCalledWithOptions('validator', {
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
       });
     });
@@ -263,14 +263,14 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('test context', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
         cwd: '/workspace',
         isolation: true,
       });
 
       mockRunner.assertCalledWithOptions('validator', {
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
     });
 
@@ -286,7 +286,7 @@ describe('MockTaskRunner Assertion API', () => {
       assert.throws(
         () =>
           mockRunner.assertCalledWithOptions('validator', {
-            model: 'sonnet',
+            modelLevel: 'level2',
             outputFormat: 'json',
           }),
         /Expected agent "validator" to be called with options.*but no calls matched/
@@ -345,7 +345,7 @@ describe('MockTaskRunner Assertion API', () => {
       // First call with sonnet
       await mockRunner.run('initial attempt', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       // Second call with opus (escalated)
@@ -367,7 +367,7 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('Review IMPLEMENTATION_READY from worker', {
         agentId: 'validator',
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
         jsonSchema: {
           type: 'object',
@@ -378,7 +378,7 @@ describe('MockTaskRunner Assertion API', () => {
       mockRunner.assertContextIncludes('validator', 'IMPLEMENTATION_READY');
       mockRunner.assertCalledWithOutputFormat('validator', 'json');
       mockRunner.assertCalledWithOptions('validator', {
-        model: 'sonnet',
+        modelLevel: 'level2',
         outputFormat: 'json',
       });
     });
@@ -388,17 +388,17 @@ describe('MockTaskRunner Assertion API', () => {
 
       await mockRunner.run('Initial context', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       await mockRunner.run('Context with VALIDATION_RESULT: rejected', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       await mockRunner.run('Context with VALIDATION_RESULT: approved', {
         agentId: 'worker',
-        model: 'sonnet',
+        modelLevel: 'level2',
       });
 
       const calls = mockRunner.getCalls('worker');

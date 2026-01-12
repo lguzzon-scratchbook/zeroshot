@@ -89,7 +89,7 @@ describe('Orchestrator Subscription Race Condition (issue #31)', function () {
         {
           id: 'fast-worker',
           role: 'implementation',
-          model: 'sonnet',
+          modelLevel: 'level2',
           prompt: 'Complete this task quickly',
           triggers: [
             {
@@ -164,7 +164,7 @@ describe('Orchestrator Subscription Race Condition (issue #31)', function () {
         {
           id: 'worker-1',
           role: 'implementation',
-          model: 'sonnet',
+          modelLevel: 'level2',
           triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
           hooks: {
             onComplete: {
@@ -179,7 +179,7 @@ describe('Orchestrator Subscription Race Condition (issue #31)', function () {
         {
           id: 'worker-2',
           role: 'implementation',
-          model: 'sonnet',
+          modelLevel: 'level2',
           triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
           hooks: {
             onComplete: {
@@ -194,7 +194,7 @@ describe('Orchestrator Subscription Race Condition (issue #31)', function () {
         {
           id: 'worker-3',
           role: 'implementation',
-          model: 'sonnet',
+          modelLevel: 'level2',
           triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
           hooks: {
             onComplete: {
@@ -209,7 +209,7 @@ describe('Orchestrator Subscription Race Condition (issue #31)', function () {
         {
           id: 'completion-detector',
           role: 'completion-detector',
-          model: 'sonnet',
+          modelLevel: 'level2',
           prompt: 'Check if all workers done',
           triggers: [
             {

@@ -12,3 +12,6 @@ npx lint-staged
 
 # Type check the entire project (can't be limited to staged files)
 npm run typecheck
+
+# Validate cluster templates (catches hardcoded model names, broken configs)
+npm run validate:templates

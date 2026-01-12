@@ -49,6 +49,12 @@ describe('Nested Cluster', function () {
       /* ignore */
     }
 
+    try {
+      orchestrator.close();
+    } catch {
+      /* ignore */
+    }
+
     // Clean test directory
     if (fs.existsSync(TEST_STORAGE)) {
       fs.rmSync(TEST_STORAGE, { recursive: true, force: true });
@@ -62,7 +68,7 @@ describe('Nested Cluster', function () {
           {
             id: 'parent',
             role: 'planning',
-            model: 'haiku',
+            modelLevel: 'level1',
             triggers: [{ topic: 'ISSUE_OPENED' }],
             hooks: {
               onComplete: {
@@ -80,7 +86,7 @@ describe('Nested Cluster', function () {
                 {
                   id: 'worker',
                   role: 'implementation',
-                  model: 'haiku',
+                  modelLevel: 'level1',
                   triggers: [{ topic: 'ISSUE_OPENED' }],
                   hooks: {
                     onComplete: {
@@ -183,7 +189,7 @@ describe('Nested Cluster', function () {
                 {
                   id: 'worker',
                   role: 'implementation',
-                  model: 'haiku',
+                  modelLevel: 'level1',
                   triggers: [{ topic: 'START' }],
                 },
               ],
@@ -209,7 +215,7 @@ describe('Nested Cluster', function () {
               {
                 id: `leaf-${depth}`,
                 role: 'implementation',
-                model: 'haiku',
+                modelLevel: 'level1',
                 triggers: [{ topic: 'ISSUE_OPENED' }],
               },
             ],
@@ -259,7 +265,7 @@ describe('Nested Cluster', function () {
             {
               id: 'worker',
               role: 'implementation',
-              model: 'haiku',
+              modelLevel: 'level1',
               triggers: [{ topic: 'START' }],
             },
           ],

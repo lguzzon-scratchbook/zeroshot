@@ -22,7 +22,7 @@ const vm = require('vm');
  * @param {Object} params.orchestrator - Orchestrator instance
  * @returns {Promise<void>}
  */
-function executeHook(params) {
+async function executeHook(params) {
   const { hook, agent, message, result, cluster } = params;
 
   if (!hook) {
@@ -43,14 +43,14 @@ function executeHook(params) {
 
     if (hook.transform) {
       // NEW: Execute transform script to generate message
-      messageToPublish = executeTransform({
+      messageToPublish = await executeTransform({
         transform: hook.transform,
         context,
         agent,
       });
     } else {
       // Existing: Use template substitution
-      messageToPublish = substituteTemplate({
+      messageToPublish = await substituteTemplate({
         config: hook.config,
         context,
         agent,
@@ -77,9 +77,9 @@ function executeHook(params) {
  * @param {Object} params.transform - Transform configuration
  * @param {Object} params.context - Execution context
  * @param {Object} params.agent - Agent instance
- * @returns {Object} Message to publish
+ * @returns {Promise<Object>} Message to publish
  */
-function executeTransform(params) {
+async function executeTransform(params) {
   const { transform, context, agent } = params;
   const { engine, script } = transform;
 
@@ -93,7 +93,7 @@ function executeTransform(params) {
   let resultData = null;
 
   if (context.result?.output) {
-    resultData = agent._parseResultOutput(context.result.output);
+    resultData = await agent._parseResultOutput(context.result.output);
   } else if (scriptUsesResult) {
     const taskId = context.result?.taskId || agent.currentTaskId || 'UNKNOWN';
     const outputLength = (context.result?.output || '').length;
@@ -163,9 +163,9 @@ function executeTransform(params) {
  * @param {Object} params.context - Execution context
  * @param {Object} params.agent - Agent instance
  * @param {Object} params.cluster - Cluster object
- * @returns {Object} Substituted configuration
+ * @returns {Promise<Object>} Substituted configuration
  */
-function substituteTemplate(params) {
+async function substituteTemplate(params) {
   const { config, context, agent, cluster } = params;
 
   if (!config) {
@@ -243,7 +243,7 @@ function substituteTemplate(params) {
       );
     }
     // Parse result output - WILL THROW if no JSON block
-    resultData = agent._parseResultOutput(context.result.output);
+    resultData = await agent._parseResultOutput(context.result.output);
   }
 
   // Helper to escape a value for JSON string substitution

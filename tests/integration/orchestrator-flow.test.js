@@ -771,7 +771,7 @@ describe('Orchestrator Flow Integration', function () {
                     {
                       id: 'planner',
                       role: 'planner',
-                      model: 'opus', // This exceeds maxModel='sonnet'
+                      modelLevel: 'level3', // This exceeds maxModel='sonnet'
                       timeout: 0,
                       triggers: [{ topic: 'ISSUE_OPENED', action: 'execute_task' }],
                       prompt: 'Plan the task',
