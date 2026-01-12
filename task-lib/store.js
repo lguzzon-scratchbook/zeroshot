@@ -1,18 +1,38 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, statSync } from 'fs';
 import { TASKS_DIR, TASKS_FILE, LOGS_DIR, SCHEDULES_FILE } from './config.js';
 import { generateName } from './name-generator.js';
 import lockfile from 'proper-lockfile';
 
+// Stale lock timeout - 5 seconds is plenty for JSON read/write
+const LOCK_STALE_MS = 5000;
+
 // Lock options with async retry support
 const LOCK_OPTIONS = {
-  stale: 30000, // Consider lock stale after 30s
+  stale: LOCK_STALE_MS,
   retries: {
-    retries: 100,
+    retries: 20,
     minTimeout: 100,
     maxTimeout: 200,
     randomize: true,
   },
 };
+
+/**
+ * Remove lock file if it's stale (older than LOCK_STALE_MS)
+ */
+function cleanStaleLock(filePath) {
+  const lockPath = filePath + '.lock';
+  try {
+    if (existsSync(lockPath)) {
+      const age = Date.now() - statSync(lockPath).mtimeMs;
+      if (age > LOCK_STALE_MS) {
+        unlinkSync(lockPath);
+      }
+    }
+  } catch {
+    // Ignore - another process may have cleaned it
+  }
+}
 
 export function ensureDirs() {
   if (!existsSync(TASKS_DIR)) mkdirSync(TASKS_DIR, { recursive: true });
@@ -58,6 +78,9 @@ export async function withTasksLock(modifier) {
 
   let release;
   try {
+    // Clean stale locks from crashed processes
+    cleanStaleLock(TASKS_FILE);
+
     // Acquire lock with async API (proper retries without CPU spin-wait)
     release = await lockfile.lock(TASKS_FILE, LOCK_OPTIONS);
 
@@ -133,6 +156,9 @@ async function withSchedulesLock(modifier) {
 
   let release;
   try {
+    // Clean stale locks from crashed processes
+    cleanStaleLock(SCHEDULES_FILE);
+
     // Acquire lock with async API (proper retries without CPU spin-wait)
     release = await lockfile.lock(SCHEDULES_FILE, LOCK_OPTIONS);
 

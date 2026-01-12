@@ -785,6 +785,10 @@ function followClaudeTaskLogs(agent, taskId) {
         const isStale = /Status:\s+stale/i.test(cleanStdout);
 
         if (isCompleted || isFailed || isStale) {
+          // CRITICAL: Read final log content BEFORE checking output
+          // Fixes race where status flips to stale before log polling catches up
+          pollLogFile();
+
           // For stale tasks, check log file for successful result
           let success = isCompleted;
           if (isStale && output) {
@@ -805,9 +809,6 @@ function followClaudeTaskLogs(agent, taskId) {
               );
             }
           }
-
-          // Read any final content
-          pollLogFile();
 
           // Clean up and resolve
           setTimeout(() => {

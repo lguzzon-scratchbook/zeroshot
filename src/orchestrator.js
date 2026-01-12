@@ -13,6 +13,26 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const lockfile = require('proper-lockfile');
+
+// Stale lock timeout in ms - if lock file is older than this, delete it
+const LOCK_STALE_MS = 5000;
+
+/**
+ * Remove lock file if it's stale (older than LOCK_STALE_MS)
+ * Handles crashes that leave orphaned lock files
+ */
+function cleanStaleLock(lockPath) {
+  try {
+    if (fs.existsSync(lockPath)) {
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (age > LOCK_STALE_MS) {
+        fs.unlinkSync(lockPath);
+      }
+    }
+  } catch {
+    // Ignore - another process may have cleaned it
+  }
+}
 const AgentWrapper = require('./agent-wrapper');
 const SubClusterWrapper = require('./sub-cluster-wrapper');
 const MessageBus = require('./message-bus');
@@ -127,10 +147,13 @@ class Orchestrator {
     let release;
 
     try {
+      // Clean stale locks from crashed processes
+      cleanStaleLock(lockfilePath);
+
       // Acquire lock with async API (proper retries without CPU spin-wait)
       release = await lockfile.lock(clustersFile, {
         lockfilePath,
-        stale: 30000,
+        stale: LOCK_STALE_MS,
         retries: {
           retries: 20,
           minTimeout: 100,
@@ -357,10 +380,13 @@ class Orchestrator {
     let release;
 
     try {
+      // Clean stale locks from crashed processes
+      cleanStaleLock(lockfilePath);
+
       // Acquire exclusive lock with async API (proper retries without CPU spin-wait)
       release = await lockfile.lock(clustersFile, {
         lockfilePath,
-        stale: 30000,
+        stale: LOCK_STALE_MS,
         retries: {
           retries: 50,
           minTimeout: 100,
@@ -466,11 +492,14 @@ class Orchestrator {
       try {
         if (!fs.existsSync(clustersFile)) return;
 
+        // Clean stale locks from crashed processes
+        cleanStaleLock(lockfilePath);
+
         // Try to acquire lock once (polling is best-effort, will retry on next cycle)
         try {
           release = lockfile.lockSync(clustersFile, {
             lockfilePath,
-            stale: 30000,
+            stale: LOCK_STALE_MS,
           });
         } catch (lockErr) {
           // Lock busy - skip this poll cycle, try again next interval
