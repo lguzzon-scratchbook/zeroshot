@@ -357,16 +357,48 @@ async function executeTask(agent, triggeringMessage) {
         });
       }
 
-      // Execute onComplete hook
-      await executeHook({
-        hook: agent.config.hooks?.onComplete,
-        agent: agent,
-        message: triggeringMessage,
-        result: result,
-        messageBus: agent.messageBus,
-        cluster: agent.cluster,
-        orchestrator: agent.orchestrator,
-      });
+      // Execute onComplete hook WITH RETRY
+      // Hook failure shouldn't retry the entire task - just the hook
+      const hookMaxRetries = 3;
+      const hookBaseDelay = 1000;
+      let hookSuccess = false;
+
+      for (let hookAttempt = 1; hookAttempt <= hookMaxRetries && !hookSuccess; hookAttempt++) {
+        try {
+          await executeHook({
+            hook: agent.config.hooks?.onComplete,
+            agent: agent,
+            message: triggeringMessage,
+            result: result,
+            messageBus: agent.messageBus,
+            cluster: agent.cluster,
+            orchestrator: agent.orchestrator,
+          });
+          hookSuccess = true;
+        } catch (hookError) {
+          console.error(`\n${'='.repeat(80)}`);
+          console.error(
+            `🔴 HOOK EXECUTION FAILED - AGENT: ${agent.id} (Attempt ${hookAttempt}/${hookMaxRetries})`
+          );
+          console.error(`${'='.repeat(80)}`);
+          console.error(`Error: ${hookError.message}`);
+
+          if (hookAttempt < hookMaxRetries) {
+            const delay = hookBaseDelay * Math.pow(2, hookAttempt - 1);
+            console.error(`Will retry hook in ${delay}ms...`);
+            console.error(`${'='.repeat(80)}\n`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          } else {
+            console.error(`${'='.repeat(80)}\n`);
+            // All hook retries exhausted - throw to trigger task-level handling
+            throw new Error(
+              `Hook execution failed after ${hookMaxRetries} attempts. ` +
+                `Task completed successfully but hook could not publish result. ` +
+                `Original error: ${hookError.message}`
+            );
+          }
+        }
+      }
 
       // ✅ SUCCESS - exit retry loop
       return;

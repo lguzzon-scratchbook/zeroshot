@@ -936,8 +936,70 @@ class Orchestrator {
         );
       });
 
+      // CONDUCTOR WATCHDOG: If conductor completes but CLUSTER_OPERATIONS never arrives, FAIL FAST
+      // This catches the silent failure where conductor outputs result but hook fails to publish
+      const CONDUCTOR_WATCHDOG_TIMEOUT_MS = 30000; // 30 seconds
+      let conductorWatchdogTimer = null;
+      let conductorCompletedAt = null;
+
+      // Start watchdog when conductor completes
+      subscribeToClusterTopic('AGENT_LIFECYCLE', (message) => {
+        const event = message.content?.data?.event;
+        const role = message.content?.data?.role;
+
+        // Conductor completed - start watchdog
+        if (event === 'TASK_COMPLETED' && role === 'conductor') {
+          conductorCompletedAt = Date.now();
+          this._log(
+            `⏱️  Conductor completed. Watchdog started - expecting CLUSTER_OPERATIONS within ${CONDUCTOR_WATCHDOG_TIMEOUT_MS / 1000}s`
+          );
+
+          conductorWatchdogTimer = setTimeout(() => {
+            // Check if CLUSTER_OPERATIONS was received
+            const clusterOps = messageBus.query({ topic: 'CLUSTER_OPERATIONS', limit: 1 });
+            if (clusterOps.length === 0) {
+              console.error(`\n${'='.repeat(80)}`);
+              console.error(`🔴 CONDUCTOR WATCHDOG TRIGGERED - CLUSTER_OPERATIONS NEVER RECEIVED`);
+              console.error(`${'='.repeat(80)}`);
+              console.error(
+                `Conductor completed ${CONDUCTOR_WATCHDOG_TIMEOUT_MS / 1000}s ago but no CLUSTER_OPERATIONS`
+              );
+              console.error(`This indicates the conductor's onComplete hook FAILED SILENTLY`);
+              console.error(
+                `Check: 1) Result parsing 2) Transform script errors 3) Schema validation`
+              );
+              console.error(`${'='.repeat(80)}\n`);
+
+              // Publish CLUSTER_FAILED to stop the cluster
+              messageBus.publish({
+                cluster_id: clusterId,
+                topic: 'CLUSTER_FAILED',
+                sender: 'orchestrator',
+                content: {
+                  text: `Conductor completed but CLUSTER_OPERATIONS never published - hook failure`,
+                  data: {
+                    reason: 'CONDUCTOR_WATCHDOG_TIMEOUT',
+                    conductorCompletedAt,
+                    timeoutMs: CONDUCTOR_WATCHDOG_TIMEOUT_MS,
+                  },
+                },
+              });
+            }
+          }, CONDUCTOR_WATCHDOG_TIMEOUT_MS);
+        }
+      });
+
       // Watch for CLUSTER_OPERATIONS - dynamic agent spawn/removal/update
       subscribeToClusterTopic('CLUSTER_OPERATIONS', (message) => {
+        // Clear conductor watchdog - CLUSTER_OPERATIONS received successfully
+        if (conductorWatchdogTimer) {
+          clearTimeout(conductorWatchdogTimer);
+          conductorWatchdogTimer = null;
+          const elapsed = conductorCompletedAt ? Date.now() - conductorCompletedAt : 0;
+          this._log(
+            `✅ CLUSTER_OPERATIONS received (${elapsed}ms after conductor completed) - watchdog cleared`
+          );
+        }
         let operations = message.content?.data?.operations;
 
         // Parse operations if they came as a JSON string

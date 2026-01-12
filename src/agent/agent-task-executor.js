@@ -80,8 +80,29 @@ function extractErrorContext({ output, statusOutput, taskId, isNotFound = false 
     }
   }
 
+  // KNOWN CLAUDE CODE LIMITATIONS - detect and provide actionable guidance
+  const fullOutput = output || '';
+
+  // 256KB file limit error
+  if (fullOutput.includes('exceeds maximum allowed size') || fullOutput.includes('256KB')) {
+    return sanitizeErrorMessage(
+      `FILE TOO LARGE (Claude Code 256KB limit). ` +
+        `Use offset and limit parameters when reading large files. ` +
+        `Example: Read tool with offset=0, limit=1000 to read first 1000 lines.`
+    );
+  }
+
+  // Streaming mode error (interactive tools in non-interactive mode)
+  if (fullOutput.includes('only prompt commands are supported in streaming mode')) {
+    return sanitizeErrorMessage(
+      `STREAMING MODE ERROR: Agent tried to use interactive tools in streaming mode. ` +
+        `This usually happens with AskUserQuestion or interactive prompts. ` +
+        `Zeroshot agents must run non-interactively.`
+    );
+  }
+
   // Fall back to extracting from output (last 500 chars)
-  const lastOutput = (output || '').slice(-500).trim();
+  const lastOutput = fullOutput.slice(-500).trim();
   if (!lastOutput) {
     return sanitizeErrorMessage(
       'Task failed with no output (check if task was interrupted or timed out)'
@@ -1267,7 +1288,9 @@ async function parseResultOutput(agent, output) {
           if (lastError) {
             console.warn(`[Agent ${agent.id}] Reformat attempt ${attempt}: ${lastError}`);
           } else {
-            console.warn(`[Agent ${agent.id}] JSON extraction failed, reformatting (attempt ${attempt})...`);
+            console.warn(
+              `[Agent ${agent.id}] JSON extraction failed, reformatting (attempt ${attempt})...`
+            );
           }
         },
       });

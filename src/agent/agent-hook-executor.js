@@ -93,7 +93,46 @@ async function executeTransform(params) {
   let resultData = null;
 
   if (context.result?.output) {
-    resultData = await agent._parseResultOutput(context.result.output);
+    try {
+      resultData = await agent._parseResultOutput(context.result.output);
+    } catch (parseError) {
+      // FAIL FAST: Result parsing failed - don't continue with null data
+      const taskId = context.result?.taskId || agent.currentTaskId || 'UNKNOWN';
+      console.error(`\n${'='.repeat(80)}`);
+      console.error(`🔴 TRANSFORM SCRIPT BLOCKED - RESULT PARSING FAILED`);
+      console.error(`${'='.repeat(80)}`);
+      console.error(`Agent: ${agent.id}, Role: ${agent.role}`);
+      console.error(`TaskID: ${taskId}`);
+      console.error(`Parse error: ${parseError.message}`);
+      console.error(`Output (last 500 chars): ${(context.result.output || '').slice(-500)}`);
+      console.error(`${'='.repeat(80)}\n`);
+      throw new Error(
+        `Transform script cannot run: result parsing failed. ` +
+          `Agent: ${agent.id}, Error: ${parseError.message}`
+      );
+    }
+
+    // DEFENSIVE: Validate result has expected fields if script accesses them
+    // Extract field names from script (e.g., result.complexity, result.taskType)
+    const accessedFields = [...script.matchAll(/result\.([a-zA-Z_]+)/g)].map((m) => m[1]);
+    const missingFields = accessedFields.filter((f) => resultData[f] === undefined);
+    if (missingFields.length > 0) {
+      const taskId = context.result?.taskId || agent.currentTaskId || 'UNKNOWN';
+      console.error(`\n${'='.repeat(80)}`);
+      console.error(`🔴 TRANSFORM SCRIPT BLOCKED - MISSING REQUIRED FIELDS`);
+      console.error(`${'='.repeat(80)}`);
+      console.error(`Agent: ${agent.id}, Role: ${agent.role}, TaskID: ${taskId}`);
+      console.error(`Script accesses: ${accessedFields.join(', ')}`);
+      console.error(`Missing from result: ${missingFields.join(', ')}`);
+      console.error(`Result keys: ${Object.keys(resultData).join(', ')}`);
+      console.error(`Result data: ${JSON.stringify(resultData, null, 2)}`);
+      console.error(`${'='.repeat(80)}\n`);
+      throw new Error(
+        `Transform script accesses undefined fields: ${missingFields.join(', ')}. ` +
+          `Agent ${agent.id} (task ${taskId}) output missing required fields. ` +
+          `Check agent's jsonSchema and output format.`
+      );
+    }
   } else if (scriptUsesResult) {
     const taskId = context.result?.taskId || agent.currentTaskId || 'UNKNOWN';
     const outputLength = (context.result?.output || '').length;
@@ -149,6 +188,40 @@ async function executeTransform(params) {
   }
   if (!result.content) {
     throw new Error(`Transform script result must have a 'content' property`);
+  }
+
+  // CRITICAL: Extra validation for CLUSTER_OPERATIONS - this is the make-or-break message
+  // If this message is malformed, the cluster will hang forever
+  if (result.topic === 'CLUSTER_OPERATIONS') {
+    const operations = result.content?.data?.operations;
+    if (!operations) {
+      console.error(`\n${'='.repeat(80)}`);
+      console.error(`🔴 CLUSTER_OPERATIONS MALFORMED - MISSING OPERATIONS ARRAY`);
+      console.error(`${'='.repeat(80)}`);
+      console.error(`Agent: ${agent.id}`);
+      console.error(`Result: ${JSON.stringify(result, null, 2)}`);
+      console.error(`${'='.repeat(80)}\n`);
+      throw new Error(
+        `CLUSTER_OPERATIONS message missing operations array. ` +
+          `Agent ${agent.id} transform script returned invalid structure.`
+      );
+    }
+    if (!Array.isArray(operations)) {
+      throw new Error(`CLUSTER_OPERATIONS.operations must be an array, got: ${typeof operations}`);
+    }
+    if (operations.length === 0) {
+      throw new Error(`CLUSTER_OPERATIONS.operations is empty - no operations to execute`);
+    }
+
+    // Validate each operation has required 'action' field
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
+      if (!op || !op.action) {
+        throw new Error(`CLUSTER_OPERATIONS.operations[${i}] missing required 'action' field`);
+      }
+    }
+
+    agent._log(`✅ CLUSTER_OPERATIONS validated: ${operations.length} operations`);
   }
 
   return result;
